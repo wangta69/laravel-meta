@@ -1,0 +1,30 @@
+{
+  "name": "wangta69/laravel-meta",
+  "description": "MetaTag Manager for laravel",
+	"keywords": ["laravel", "metatag", ""],
+  "homepage": "https://www.onstory.fun/doc/programming/laravel/package.larave-index-now",
+  "license": "MIT",
+  "authors": [
+    {
+      "name": "Pondol",
+      "email": "wangta69@gmail.com",
+      "homepage": "https://www.onstory.fun"
+    }
+  ],
+  "minimum-stability": "dev",
+  "require": {
+    "php": ">=7.0.0"
+  },
+  "autoload": {
+    "psr-4": {
+      "Pondol\\Meta\\": "src/"
+    }
+  },
+  "extra": {
+    "laravel": {
+      "providers": [
+        "Pondol\\Meta\\MetaServiceProvider"
+      ]
+    }
+  }
+}
