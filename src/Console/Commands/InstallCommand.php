@@ -1,6 +1,6 @@
 <?php
 
-namespace Pondol\Meta\Console;
+namespace Pondol\Meta\Console\Commands;
 
 use Illuminate\Console\Command;
 // use Illuminate\Filesystem\Filesystem;
@@ -46,7 +46,7 @@ class InstallCommand extends Command
       '--force'=> true,
       '--provider' => 'Pondol\Meta\MetaServiceProvider'
     ]);
-    
+    \Artisan::call('migrate');
     $this->info("The pondol's laravel metagtag manager system installed successfully.");
     
   }

@@ -4,6 +4,7 @@ namespace Pondol\Meta;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\ServiceProvider;
 
+use Pondol\Meta\Console\Commands\InstallCommand;
 use Pondol\Meta\Services\Meta;
 
 class MetaServiceProvider extends ServiceProvider {
@@ -36,6 +37,11 @@ class MetaServiceProvider extends ServiceProvider {
   {
     // Register migrations
     $this->loadMigrationsFrom(__DIR__ . '/database/migrations');
+    $this->loadViewsFrom(__DIR__.'/resources/views', 'pondol-meta');
+
+    $this->commands([
+      InstallCommand::class
+    ]);
   }
 
 

@@ -16,10 +16,10 @@ class CreateMeta extends Migration
     if (!Schema::hasTable('metas')) {
       Schema::create('metas', function (Blueprint $table) {
         $table->id();
-        $table->string('r_name');
-        $table->string('r_params')->nullable();
+        $table->string('name')->comment('route name');
+        $table->string('params')->nullable()->comment('route parameters');
         $table->string('title')->nullable();
-        $table->string('keyword')->nullable();
+        $table->string('keywords')->nullable();
         $table->text('description')->nullable();
         $table->string('path')->nullable();
         $table->timestamps();
