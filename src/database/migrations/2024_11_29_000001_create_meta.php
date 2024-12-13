@@ -20,6 +20,7 @@ class CreateMeta extends Migration
         $table->string('params')->nullable()->comment('route parameters');
         $table->string('title')->nullable();
         $table->string('keywords')->nullable();
+        $table->string('image')->nullable()->comment('og:image');
         $table->text('description')->nullable();
         $table->string('path')->nullable();
         $table->timestamps();

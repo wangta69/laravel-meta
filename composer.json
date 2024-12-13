@@ -1,8 +1,8 @@
 {
   "name": "wangta69/laravel-meta",
   "description": "MetaTag Manager for laravel",
-	"keywords": ["laravel", "metatag"],
-  "homepage": "https://www.onstory.fun/doc/programming/laravel/package.larave-index-now",
+	"keywords": ["laravel", "meta", "tag", "seo", "검색엔진최적화"],
+  "homepage": "https://www.onstory.fun/packages/laravel-meta",
   "license": "MIT",
   "authors": [
     {

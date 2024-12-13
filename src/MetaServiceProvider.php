@@ -1,6 +1,7 @@
 <?php
 namespace Pondol\Meta;
 
+use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\ServiceProvider;
 
@@ -35,6 +36,20 @@ class MetaServiceProvider extends ServiceProvider {
    */
 	public function boot()
   {
+
+    // Publish config file and merge
+    if (!config()->has('pondol-meta')) {
+      $this->publishes([
+        __DIR__ . '/config/pondol-meta.php' => config_path('pondol-meta.php'),
+      ], 'config');  
+    } 
+      
+    $this->mergeConfigFrom(
+      __DIR__ . '/config/pondol-meta.php',
+      'pondol-meta'
+    );
+
+
     // Register migrations
     $this->loadMigrationsFrom(__DIR__ . '/database/migrations');
     $this->loadViewsFrom(__DIR__.'/resources/views', 'pondol-meta');
@@ -42,7 +57,17 @@ class MetaServiceProvider extends ServiceProvider {
     $this->commands([
       InstallCommand::class
     ]);
+
+    $this->loadMetaRoutes();
   }
 
-
+  private function loadMetaRoutes()
+  {
+    $config = config('pondol-meta.route_meta_admin');
+    Route::prefix($config['prefix'])
+      ->as($config['as'])
+      ->middleware($config['middleware'])
+      ->namespace('Pondol\Meta\Http\Controllers\Admin')
+      ->group(__DIR__ . '/routes/meta-admin.php');
+  }
 }
