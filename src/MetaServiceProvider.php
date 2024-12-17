@@ -63,6 +63,13 @@ class MetaServiceProvider extends ServiceProvider {
 
   private function loadMetaRoutes()
   {
+    $config = config('pondol-meta.route_sitemap');
+    Route::prefix($config['prefix'])
+      ->as($config['as'])
+      ->middleware($config['middleware'])
+      ->namespace('Pondol\Meta\Http\Controllers')
+      ->group(__DIR__ . '/routes/sitemap.php');
+    
     $config = config('pondol-meta.route_meta_admin');
     Route::prefix($config['prefix'])
       ->as($config['as'])

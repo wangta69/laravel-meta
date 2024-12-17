@@ -76,6 +76,14 @@ class ViewerController extends Controller
   ..........
 }
 ```
+
+#### 기존 메타에 내용 추가하기
+```
+ $meta = Meta::get()
+  ->suffix(function($suffix) use($page){
+    $suffix->title = ' '.$page.'page';
+  });
+```
 ### Meta::get()
 > Meta::get() 을 사용하면 현재 동일 라우터 명과 파라미터에 대해서 데이타를 가져오지만 없을 경우 새롭게 추가를 합니다. <br>
 > 따라서 laravel meta 에서 제공하는 관리자 모드로 접근하여 관련 메타 정보를 변경가능합니다. <br>
@@ -84,4 +92,39 @@ class ViewerController extends Controller
 yourDomain/meta/admin
 ```
 
+### og:image
+> og:image는 이미 존재하는 이미지를 가져오는 방식과 실시간으로 이미지를 생성하는 방식 두가지를 제공합니다.
+#### 기존 이미지를 넣기
+```
+Meta::get()->image(Put image path);
+```
+
+#### 실시간 이미지 생성
+> $image->create(); 사용시 config/pondol-meta.php에서 정의된 dummy_image 의 정보를 이용하여 백그라운드가 존재하는 텍스트 이미지를 생성합니다.
+```
+$meta = Meta::get()->create_image(function($image){
+  $image->create();
+});
+```
+> config 파일외에 실시간으로 변경하고자 하면 아래처럼 변경하고자 하는 값을 넣어 주시면 됩니다.
+```
+$meta = Meta::get()->create_image(function($image){
+  $image->save_path = '';
+  $image->background_image = '';
+  $image->font = '';
+  $image->fontSize = '';
+
+  $image->create();
+});
+```
+
+## SiteMap
+> Pondol Meta 는 기본적으로 google 등을 위한 사이트 맵도 기본 적으로 제공합니다. <br>
+> 기본 제공 경로를 바꾸시려면 config/pondol-meta.php에서 'route_sitemap.prefix' 속성을 변경하시면 됩니다.
+```
+YourDomain/meta/{vendor}.xml
+
+YourDomain/meta/google.xml
+YourDomain/meta/naver.xml
+```
 

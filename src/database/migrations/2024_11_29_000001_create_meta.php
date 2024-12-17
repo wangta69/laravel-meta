@@ -23,6 +23,8 @@ class CreateMeta extends Migration
         $table->string('image')->nullable()->comment('og:image');
         $table->text('description')->nullable();
         $table->string('path')->nullable();
+        $table->string('changefreq', '10')->default('weekly');
+        $table->string('priority', '10')->default('0.6');
         $table->timestamps();
       });
     }

@@ -61,8 +61,14 @@ class MetaController extends Controller
     $item->keywords = $request->keywords;
     $item->image = $request->image;
     $item->description = $request->description;
+    if($request->path) {
+      $item->path = $request->path;
+    }
     $item->save();
 
+    if($request->back) {
+      return redirect()->back();
+    }
     return redirect()->route('meta.admin.index');
   }
 

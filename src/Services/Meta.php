@@ -4,7 +4,7 @@ namespace Pondol\Meta\Services;
 use Illuminate\Support\Facades\Route;
 
 use Pondol\Meta\Models\Meta as mMeta;
-
+use Pondol\Meta\Services\Image;
 class Meta
 {
 
@@ -13,12 +13,17 @@ class Meta
   public $title = '';
   public $keywords = '';
   public $description = '';
+  public $path;
+  public $created_at;
+  public $updated_at;
   public $og_type = 'website';
   public $og;
+ 
   
   public function __construct()
   {
     $this->og = new \stdClass;
+    
   }
   
   public function set($route_name, $route_params) {
@@ -27,12 +32,17 @@ class Meta
     $this->title = $meta->title;
     $this->keywords = $meta->keywords;
     $this->description = $meta->description;
+    $this->path = $meta->path;
+    $this->created_at = $meta->created_at;
+    $this->updated_at = $meta->updated_at;
     $this->og->image = $meta->image;
     return $this;
   }
   public function get() {
     $route_name = Route::currentRouteName(); 
-
+    if(!$route_name) {
+      $route_name = request()->path();
+    }
     $route_params = [];
     foreach(Route::getCurrentRoute()->parameterNames as $p) {
       $route_params[$p] = Route::getCurrentRoute()->originalParameter($p);
@@ -71,19 +81,16 @@ class Meta
     return $this;
   }
 
-  public function update() {
-    mMeta::where('id', $this->id)->update([
-      'title'=>$this->title,
-      'keywords'=>$this->keywords,
-      'description'=>$this->description,
-      'image'=>$this->og->image
-    ]);
-  }
-
-  public function image($url) {
-    $this->og->image = $url;
+  public function image($path) {
+    $this->og->image = $path;
     return $this;
   }
+
+  public function path($path) {
+    $this->path = $path ?? $this->path;
+    return $this;
+  }
+  
 
   /** @deprecated */
   public function setTitle($title) {
@@ -91,62 +98,27 @@ class Meta
     // $this->ogImage($title);
   }
 
-/*
-  public function image($title=null) {
-    $title = $title ? $title : $this->title;
-    $this->og = new \stdClass;
-    // $this->og->image = \App\Services\ViewerService::titleImage($id, $title);
-    $this->og->alt = $title;
-    $this->og->type = 'jpeg';
-    // $this->ogImage($title);
-  }
-  */
-
-
-
-  /**
-   * og용 이미지 제작
-   */
-  public function create_og_image($title) {
-    $image_path = public_path()."/title-images";
-
-    if (file_exists($image_path.'/'.$this->id.'.jpg')) {
-      return '/title-images/'.$this->id.'.jpg';
-    }
-
-    $img = imagecreatefromjpeg(public_path()."/assets/images/title.jpg");//replace with your image 
-
-    $fontFile = public_path()."/assets/fonts/NanumGothic.ttf";//replace with your font
-    $fontSize = 24;
-    $fontColor = imagecolorallocate($img, 255, 255, 255);
-    $black = imagecolorallocate($img, 255, 255, 255);
-    $angle = 0;
-  
-    $iWidth = imagesx($img);
-    $iHeight = imagesy($img);
-  
-    $tSize = imagettfbbox($fontSize, $angle, $fontFile, $title);
-    $tWidth = max([$tSize[2], $tSize[4]]) - min([$tSize[0], $tSize[6]]);
-    $tHeight = max([$tSize[5], $tSize[7]]) - min([$tSize[1], $tSize[3]]);
-    // text is placed in center you can change it by changing $centerX, $centerY values
-    $centerX = CEIL(($iWidth - $tWidth) / 2);
-    $centerX = $centerX<0 ? 0 : $centerX;
-    $centerY = CEIL(($iHeight - $tHeight) / 2);
-    $centerY = $centerY<0 ? 0 : $centerY;
-
-    // print_r($centerX);
-    // print_r($centerX);
-    imagettftext($img, $fontSize, $angle, $centerX, $centerY, $black, $fontFile, $title);
-    imagejpeg($img, $image_path.'/'.$id.'.jpg');//save image
-    imagedestroy($img);
-    return '/title-images/'.$id.'.jpg';
+  public function suffix($callback) {
+    $c_suffix = new Suffix($this);
+    $callback($c_suffix);
+    
+    return $this;
   }
 
-  /** @deprecated */
-  // private function ogImage($id, $title) {
-  //   $this->og_image = new \stdClass;
-  //   $this->og_image->name = \App\Services\ViewerService::titleImage($id, $title);
-  //   $this->og_image->alt = $title;
-  //   $this->og_image->type = 'jpeg';
-  // }
+  public function create_image($callback) {
+    $c_img = new Image($this);
+    $callback($c_img);
+    return $this;
+  }
+
+  public function update() {
+    mMeta::where('id', $this->id)->update([
+      'title'=>$this->title,
+      'keywords'=>$this->keywords,
+      'description'=>$this->description,
+      'image'=>$this->og->image,
+      'path'=>$this->path
+    ]);
+  }
 }
+
