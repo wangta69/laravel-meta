@@ -30,6 +30,7 @@ class Meta
    * 게시물 등록이나 수정시 사용
    */
   public function set($route_name, $route_params) {
+
     $meta = mMeta::firstOrCreate(['name' => $route_name, 'params'=>json_encode($route_params)]);
     $this->id = $meta->id;
     $this->title = $meta->title;
@@ -39,26 +40,19 @@ class Meta
     $this->created_at = $meta->created_at;
     $this->updated_at = $meta->updated_at;
     $this->og->image = $meta->image;
+
     if(!$meta->path && $route_name) {
-      // if(count($route_name)) {
+      try {
         $meta->path = str_replace(config('app.url'), '', route($route_name, $route_params));
-      // } else {
-        // $meta->path = str_replace(config('app.url'), '', route($route_name));
-      // }
       
-      $meta->save();
-
-
-      // switch($type) {
-      //   case 'route':
-          
-      //     break;
-      //   case 'path':
-      //     $meta->path = request()->path();
-      //     break;
-      // }
-      
+        $meta->save();
+      }
+      catch ( \Exception $e )
+      {
+        \Log::debug($e->getMessage());
+      }
     }
+
     $this->path = $meta->path;
     return $this;
   }
