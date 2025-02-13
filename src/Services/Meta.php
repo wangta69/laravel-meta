@@ -18,12 +18,34 @@ class Meta
   public $updated_at;
   public $og_type = 'website';
   public $og;
- 
-  
+  public $twitter;
+
+  public $revisitAfter;
+  public $coverage;
+  public $distribution;
+
+  public $rating;
+
+
+  public $robots = 'index,follow';
+
   public function __construct()
   {
     $this->og = new \stdClass;
-    
+    $this->og->type = 'website';
+    $this->og->locale = 'ko_kr';
+    $this->og->site_name = config('app.name', 'OnStory');
+
+    $this->twitter = new \stdClass;
+    $this->twitter->card = 'summary';
+    $this->twitter->site = config('app.name', 'OnStory');
+    $this->twitter->creator = '';
+
+    $this->robots = config('pondol-meta.robots');
+    $this->revisitAfter = config('pondol-meta.revisit-after');
+    $this->coverage = config('pondol-meta.coverage');
+    $this->distribution = config('pondol-meta.distribution');
+    $this->rating = config('pondol-meta.rating');
   }
   
   /**
@@ -58,26 +80,26 @@ class Meta
   }
   
   public function get() {
+   
     $route_name = Route::currentRouteName(); 
     // $type='route';
     if(!$route_name) {
       $route_name = request()->path();
       // $type='path';
     }
+
     $route_params = [];
     foreach(Route::getCurrentRoute()->parameterNames as $p) {
       $route_params[$p] = Route::getCurrentRoute()->originalParameter($p);
     }
     return $this->set($route_name, $route_params);
   }
-  
-  
-
+  /** @deprecated */
   public function title($title) {
     $this->title = $title ?? $this->title;
     return $this;
   }
-
+/** @deprecated */
   public function keywords($keywords) {
     $this->keywords = $keywords ?? $this->keywords;
     return $this;
@@ -96,7 +118,7 @@ class Meta
     $this->keywords = implode(',', $keywords);
     return $this;
   }
-
+/** @deprecated */
   public function description($description) {
     $this->description = $description ?? $this->description;
     return $this;
@@ -106,7 +128,7 @@ class Meta
     $this->og->image = $path;
     return $this;
   }
-
+/** @deprecated */
   public function path($path) {
     $this->path = $path ?? $this->path;
     return $this;
@@ -141,5 +163,47 @@ class Meta
       'path'=>$this->path
     ]);
   }
+
+  public function toArray() {
+    // $obj = (array)$this;
+    $meta = [];
+    $og = [];
+    $twitter = [];
+
+    foreach($this as $k => $v){
+      // echo $k.PHP_EOL;
+      switch($k) {
+        case 'id': case 'path': case 'created_at': case 'updated_at': break;
+        case 'revisitAfter': $meta['revisit-after'] = $v; break;
+        case 'title':$meta[$k] = $v;$og[$k] = $v;$twitter[$k] = $v;break;
+        case 'description':$meta[$k] = $v;$og[$k] = $v;$twitter[$k] = $v;break;
+        case 'title':break;
+        case 'og': 
+          foreach($v as $_k => $_v) {
+            
+            if($_k == 'image') {
+              $_v = config('app.url').$_v;
+              $og[$_k] = $_v;
+              $twitter[$_k] = $_v;
+            }else {
+              $og[$_k] = $_v;
+            }
+          }
+          break;
+        case 'twitter': 
+          foreach($v as $_k => $_v) {
+            $twitter[$_k] = $_v;
+          }
+          break;
+        default: $meta[$k] = $v; break;
+      }
+    }
+    return [$meta, $og, $twitter];
+  }
+
+  // public function add($name, $value) {
+  //   $this->{$name} .= $value;
+  //   return $this;
+  // }
 }
 
