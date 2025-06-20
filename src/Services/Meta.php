@@ -16,15 +16,15 @@ class Meta
   public $path;
   public $created_at;
   public $updated_at;
-  public $og_type = 'website';
+  // public $og_type = 'article'; // website
   public $og;
   public $twitter;
 
-  public $revisitAfter;
-  public $coverage;
-  public $distribution;
-
-  public $rating;
+  // 검색 엔진이 더 이상 사용하지 않음
+  // public $revisitAfter;
+  // public $coverage;
+  // public $distribution;
+  // public $rating;
 
 
   public $robots = 'index,follow';
@@ -32,20 +32,21 @@ class Meta
   public function __construct()
   {
     $this->og = new \stdClass;
-    $this->og->type = 'website';
-    $this->og->locale = 'ko_kr';
+    $this->og->type = 'article'; //'website'
+    $this->og->locale = 'ko_KR';
     $this->og->site_name = config('app.name', 'OnStory');
 
     $this->twitter = new \stdClass;
-    $this->twitter->card = 'summary';
-    $this->twitter->site = config('app.name', 'OnStory');
-    $this->twitter->creator = '';
+    $this->twitter->card = 'summary_large_image'; // summary
+    //  아래 두개는 twitter 계정이 있을 경우에만 사용
+    // $this->twitter->site = config('app.name', 'OnStory');
+    // $this->twitter->creator = '';
 
     $this->robots = config('pondol-meta.robots');
-    $this->revisitAfter = config('pondol-meta.revisit-after');
-    $this->coverage = config('pondol-meta.coverage');
-    $this->distribution = config('pondol-meta.distribution');
-    $this->rating = config('pondol-meta.rating');
+    // $this->revisitAfter = config('pondol-meta.revisit-after');
+    // $this->coverage = config('pondol-meta.coverage');
+    // $this->distribution = config('pondol-meta.distribution');
+    // $this->rating = config('pondol-meta.rating');
   }
   
   /**
@@ -149,7 +150,10 @@ class Meta
   }
 
   public function create_image($callback) {
+    // echo "create_image";
     $c_img = new Image($this);
+
+    // print_r($c_img);
     $callback($c_img);
     return $this;
   }
@@ -170,12 +174,14 @@ class Meta
     $og = [];
     $twitter = [];
 
+    // print_r($this);
     foreach($this as $k => $v){
       // echo $k.PHP_EOL;
       switch($k) {
         case 'id': case 'path': case 'created_at': case 'updated_at': break;
-        case 'revisitAfter': $meta['revisit-after'] = $v; break;
-        case 'title':$meta[$k] = $v;$og[$k] = $v;$twitter[$k] = $v;break;
+        // case 'revisitAfter': $meta['revisit-after'] = $v; break;
+        case 'title':$og[$k] = $v;$twitter[$k] = $v;// $meta[$k] = $v;
+          break;
         case 'description':$meta[$k] = $v;$og[$k] = $v;$twitter[$k] = $v;break;
         case 'title':break;
         case 'og': 

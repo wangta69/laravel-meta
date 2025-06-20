@@ -29,12 +29,7 @@ class Image
       return $this->meta->image(str_replace(public_path(), '', $image));
     }
 
-    if(!$this->meta->title) {
-      return;
-    }
-
     return $this->re_create($image);
-  
   }
 
   public function re_create($image) {
