@@ -4,10 +4,12 @@ namespace Pondol\Meta\Http\Controllers\Admin;
 
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
 
 use Pondol\Meta\Models\Meta;
 use App\Http\Controllers\Controller;
+use Pondol\IndexNow\Jobs\IndexNow;
 
 class MetaController extends Controller
 {
@@ -63,6 +65,8 @@ class MetaController extends Controller
     $item->description = $request->description;
     if($request->path) {
       $item->path = $request->path;
+      Log::info(request()->getSchemeAndHttpHost().'/'.$request->path);
+      IndexNow::dispatch(request()->getSchemeAndHttpHost().'/'.$request->path);
     }
     $item->save();
 
@@ -79,7 +83,5 @@ class MetaController extends Controller
     } else {
       return redirect()->route('meta.admin.index');
     }
-
-    
   }
 }

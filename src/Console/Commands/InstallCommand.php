@@ -47,9 +47,6 @@ class InstallCommand extends Command
       '--provider' => 'Pondol\Meta\MetaServiceProvider'
     ]);
     \Artisan::call('migrate');
-    $this->info("The pondol's laravel metagtag manager system installed successfully.");
-    
+    $this->info("The pondol's laravel metagtag manager system installed successfully."); 
   }
-
-
 }
