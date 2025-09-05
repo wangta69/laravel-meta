@@ -1,6 +1,6 @@
 @php
  list($meta, $og, $twitter) = $meta->toArray();
-@endphpcd 
+@endphp
 
   <!-- SEO Meta Tags -->
 @foreach($meta as $k=> $v)
