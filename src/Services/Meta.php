@@ -150,10 +150,7 @@ class Meta
   }
 
   public function create_image($callback) {
-    // echo "create_image";
     $c_img = new Image($this);
-
-    // print_r($c_img);
     $callback($c_img);
     return $this;
   }
@@ -174,9 +171,7 @@ class Meta
     $og = [];
     $twitter = [];
 
-    // print_r($this);
     foreach($this as $k => $v){
-      // echo $k.PHP_EOL;
       switch($k) {
         case 'id': case 'path': case 'created_at': case 'updated_at': break;
         // case 'revisitAfter': $meta['revisit-after'] = $v; break;

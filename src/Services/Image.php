@@ -80,8 +80,5 @@ class Image
 
   public function __set($name, $value) {
     $this->{$name} .= $value;
-
-    echo $name.':'.$value;
-
   }
 }
