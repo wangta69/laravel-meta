@@ -42,6 +42,8 @@ class InstallCommand extends Command
   private function installLaravelMeta($type)
   {
 
+     $this->call('pondol:install-common');
+     
     \Artisan::call('vendor:publish',  [
       '--force'=> true,
       '--provider' => 'Pondol\Meta\MetaServiceProvider'

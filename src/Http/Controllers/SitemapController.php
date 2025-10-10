@@ -17,7 +17,16 @@ class SitemapController extends Controller
   }
 
   public function index(Request $request) {
-    $items = Meta::whereNotNull('path')->whereNotNull('title')->orderBy('updated_at', 'desc')->get();
-    return response()->view('pondol-meta::sitemap', compact('items'))->header('Content-Type', 'text/xml');
+    // $items = Meta::whereNotNull('path')->whereNotNull('title')->orderBy('updated_at', 'desc')->get();
+    $items = cache()->remember('sitemap_items', 3600, function() {
+        return Meta::whereNotNull('path')
+               ->whereNotNull('title')
+               ->orderBy('updated_at', 'desc')
+               ->get();
+    });
+
+    return response()->view('pondol-meta::sitemap', compact('items'))
+      ->header('Content-Type', 'text/xml')
+      ->header('Cache-Control', 'public, max-age=3600');
   }
 }

@@ -58,6 +58,15 @@ class MetaServiceProvider extends ServiceProvider {
       InstallCommand::class
     ]);
 
+    // LOAD THE VIEWS
+    // - first the published views (in case they have any changes)
+    $this->publishes([
+      // copy resource 파일
+      __DIR__.'/resources/assets/' => public_path('pondol/meta'),
+      // controllers;
+      // __DIR__.'/Http/Controllers/Bbs/' => app_path('Http/Controllers/Bbs')
+    ]);
+
     $this->loadMetaRoutes();
   }
 

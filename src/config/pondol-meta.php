@@ -8,15 +8,15 @@ return [
   "rating"=>"General",
 
   "dummy_image" => [
-    "save_path" => public_path()."/images",
-    "background_image"=> public_path()."/images/seo-default.jpg",
-    "font" => public_path()."/fonts/NanumGothic.ttf",
+    "save_path" => public_path()."/pondol/meta",
+    "background_image"=> public_path()."/pondol/meta/seo-default.jpg",
+    "font" => public_path()."/pondol/meta/NanumGothic.ttf",
     "fontSize" => 24
   ],
   'route_sitemap'=>[
     'prefix'=>'meta',
     'as'=>'meta.',
-    'middleware'=>['web'],
+    'middleware'=>[],
   ],
 
   'route_meta_admin'=>[
@@ -24,5 +24,5 @@ return [
     'as'=>'meta.admin.',
     'middleware'=>['web', 'admin'],
   ],
-  'component' => ['admin'=>['layout'=>'pondol-meta::admin', 'lnb'=>'pondol-meta::partials.admin-lnb']],
+  'component' => ['admin'=>['layout'=>'pondol-common::common-admin', 'lnb'=>'pondol-meta::partials.admin-lnb']],
 ];

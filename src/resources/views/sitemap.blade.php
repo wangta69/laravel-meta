@@ -3,7 +3,7 @@
 @foreach ($items as $item)
     <url>
         <loc>{{ url(str_starts_with($item->path, '/') ? $item->path : '/' . $item->path) }}</loc>
-        <lastmod>{{ $item->updated_at->tz('UTC')->toAtomString() }}</lastmod>
+        <lastmod>{{ \Carbon\Carbon::parse($item->updated_at)->toAtomString() }}</lastmod>
 @if($item->changefreq)
         <changefreq>{{ $item->changefreq }}</changefreq>
 @endif
