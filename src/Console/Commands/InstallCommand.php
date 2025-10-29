@@ -3,6 +3,7 @@
 namespace Pondol\Meta\Console\Commands;
 
 use Illuminate\Console\Command;
+
 // use Illuminate\Filesystem\Filesystem;
 // use Illuminate\Support\Str;
 // use Symfony\Component\Process\PhpExecutableFinder;
@@ -10,45 +11,46 @@ use Illuminate\Console\Command;
 
 class InstallCommand extends Command
 {
-  // use InstallsBladeStack;
+    // use InstallsBladeStack;
 
-  /**
-   * The name and signature of the console command.
-   *
-   * @var string
-   */
-  protected $signature = 'pondol:install-meta {type=full}'; // full | only
+    /**
+     * The name and signature of the console command.
+     *
+     * @var string
+     */
+    protected $signature = 'pondol:install-meta {type=full}'; // full | only
 
-  /**
-   * The console command description.
-   *
-   * @var string
-   */
-  protected $description = "Install Pondol's Meta Manager";
-
-
-  public function __construct()
-  {
-    parent::__construct();
-  }
-
-  public function handle()
-  {
-    $type = $this->argument('type');
-    return $this->installLaravelMeta($type);
-  }
+    /**
+     * The console command description.
+     *
+     * @var string
+     */
+    protected $description = "Install Pondol's Meta Manager";
 
 
-  private function installLaravelMeta($type)
-  {
+    public function __construct()
+    {
+        parent::__construct();
+    }
 
-     $this->call('pondol:install-common');
-     
-    \Artisan::call('vendor:publish',  [
-      '--force'=> true,
-      '--provider' => 'Pondol\Meta\MetaServiceProvider'
-    ]);
-    \Artisan::call('migrate');
-    $this->info("The pondol's laravel metagtag manager system installed successfully."); 
-  }
+    public function handle()
+    {
+        $type = $this->argument('type');
+        return $this->installLaravelMeta($type);
+    }
+
+
+    private function installLaravelMeta($type)
+    {
+
+        $this->call('pondol:install-common');
+        $this->call('pondol:install-index-now');
+
+        \Artisan::call('vendor:publish', [
+          '--force' => true,
+          '--provider' => 'Pondol\Meta\MetaServiceProvider'
+        ]);
+        \Artisan::call('migrate');
+        $this->info("The pondol's laravel metagtag manager system installed successfully.");
+    }
 }

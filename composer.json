@@ -1,7 +1,13 @@
 {
   "name": "wangta69/laravel-meta",
   "description": "MetaTag Manager for laravel",
-	"keywords": ["laravel", "meta", "tag", "seo", "검색엔진최적화"],
+  "keywords": [
+    "laravel",
+    "meta",
+    "tag",
+    "seo",
+    "검색엔진최적화"
+  ],
   "homepage": "https://www.onstory.fun/packages/laravel-meta",
   "license": "MIT",
   "authors": [
@@ -13,7 +19,8 @@
   ],
   "minimum-stability": "stable",
   "require": {
-    "php": ">=7.0.0"
+    "php": ">=7.0.0",
+    "wangta69/laravel-index-now": "*"
   },
   "autoload": {
     "psr-4": {

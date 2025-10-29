@@ -6,82 +6,124 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
-
 use Pondol\Meta\Models\Meta;
 use App\Http\Controllers\Controller;
 use Pondol\IndexNow\Jobs\IndexNow;
 
 class MetaController extends Controller
 {
+    /**
+     * Create a new controller instance.
+     *
+     * @return void
+     */
+    public function __construct()
+    {
+    }
+    /**
+     * 회원가입시 이메일 유효성 및 중복 체크
+     */
+    public function index(Request $request)
+    {
+        $sk = $request->sk;
+        $sv = $request->sv;
+        $from_date = $request->from_date;
+        $to_date = $request->to_date;
 
-  /**
-   * Create a new controller instance.
-   *
-   * @return void
-   */
-  public function __construct()
-  {
-  }
-  /**
-   * 회원가입시 이메일 유효성 및 중복 체크
-   */
-  public function index(Request $request) {
-    $sk = $request->sk;
-    $sv = $request->sv;
-    $from_date = $request->from_date;
-    $to_date = $request->to_date;
+        $items = Meta::select('*');
 
-    $items = Meta::select('*');
+        if ($sv) {
+            $items = $items->where($sk, 'like', '%' . $sv . '%');
+        }
 
-    if ($sv) {
-      $items = $items->where($sk, 'like', '%' . $sv . '%');
+        if ($from_date) {
+            if (!$to_date) {
+                $to_date = date("Y-m-d");
+            }
+
+            $from_date = Carbon::createFromFormat('Y-m-d', $from_date);
+            $to_date = Carbon::createFromFormat('Y-m-d', $to_date);
+            $items =  $items->whereBetween('metas.created_at', [$from_date->startOfDay(), $to_date->endOfDay()]);
+        }
+
+
+        $items = $items->orderBy('id', 'desc')->paginate(20)->appends(request()->query());
+
+
+        return view('pondol-meta::admin.index', compact('items'));
     }
 
-    if ($from_date) {
-      if (!$to_date) {
-        $to_date = date("Y-m-d");
-      }
-
-      $from_date = Carbon::createFromFormat('Y-m-d', $from_date);
-      $to_date = Carbon::createFromFormat('Y-m-d', $to_date);
-      $items =  $items->whereBetween('metas.created_at', [$from_date->startOfDay(), $to_date->endOfDay()]);
+    public function edit(Request $request, Meta $item)
+    {
+        return view('pondol-meta::admin.edit', compact('item'));
     }
 
+    public function update(Request $request, Meta $item)
+    {
+        $item->title = $request->title;
+        $item->keywords = $request->keywords;
+        $item->image = $request->image;
+        $item->description = $request->description;
+        if ($request->path) {
+            $item->path = $request->path;
+            Log::info(request()->getSchemeAndHttpHost().'/'.$request->path);
+            IndexNow::dispatch(request()->getSchemeAndHttpHost().'/'.$request->path);
+        }
+        $item->save();
 
-    $items = $items->orderBy('id', 'desc')->paginate(20)->appends(request()->query());
-
-
-    return view('pondol-meta::admin.index', compact('items'));
-  }
-
-  public function edit(Request $request, Meta $item) {
-    return view('pondol-meta::admin.edit', compact('item'));
-  }
-
-  public function update(Request $request, Meta $item) {
-    $item->title = $request->title;
-    $item->keywords = $request->keywords;
-    $item->image = $request->image;
-    $item->description = $request->description;
-    if($request->path) {
-      $item->path = $request->path;
-      Log::info(request()->getSchemeAndHttpHost().'/'.$request->path);
-      IndexNow::dispatch(request()->getSchemeAndHttpHost().'/'.$request->path);
+        if ($request->back) {
+            return redirect()->back();
+        }
+        return redirect()->route('meta.admin.index');
     }
-    $item->save();
 
-    if($request->back) {
-      return redirect()->back();
+    public function destory(Request $request, Meta $item)
+    {
+        $item->delete();
+        if ($request->ajax()) {
+            return response()->json(['error' => false], 200); // 500, 203
+        } else {
+            return redirect()->route('meta.admin.index');
+        }
     }
-    return redirect()->route('meta.admin.index');
-  }
 
-  public function destory(Request $request, Meta $item) {
-    $item->delete();
-    if($request->ajax()){
-      return response()->json(['error'=>false], 200); // 500, 203
-    } else {
-      return redirect()->route('meta.admin.index');
+    public function create(Request $request)
+    {
+        return view('pondol-meta::admin.create');
     }
-  }
+
+    public function store(Request $request)
+    {
+        $item = new Meta();
+        $item->title = $request->title;
+        $item->keywords = $request->keywords;
+        $item->image = $request->image;
+        $item->description = $request->description;
+        $item->path = $request->path;
+        $item->save();
+
+        if ($request->path) {
+            Log::info(request()->getSchemeAndHttpHost().'/'.$request->path);
+            IndexNow::dispatch(request()->getSchemeAndHttpHost().'/'.$request->path);
+        }
+
+        if ($request->back) {
+            return redirect()->back();
+        }
+        return redirect()->route('meta.admin.index');
+    }
+
+    public function createSitemap(Request $request)
+    {
+        $result = Meta::createSitemap();
+
+        if ($result !== false) {
+            // 성공했을 경우
+            $message = 'sitemap.xml 파일이 성공적으로 생성되었습니다. (' . $result . '개의 URL 포함)';
+            return redirect()->route('meta.admin.index')->with('success', $message);
+        } else {
+            // 실패했을 경우
+            return redirect()->route('meta.admin.index')->with('error', 'sitemap.xml 파일 생성에 실패했습니다. 로그를 확인해주세요.');
+        }
+    }
 }
