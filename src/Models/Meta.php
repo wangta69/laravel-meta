@@ -48,7 +48,7 @@ class Meta extends Model
             File::put(public_path('sitemap.xml'), $xml);
             return $items->count(); // 성공 시 처리된 아이템 개수 반환
         } catch (\Exception $e) {
-            Log::error('Sitemap creation failed: ' . $e->getMessage());
+            \Log::error('Sitemap creation failed: ' . $e->getMessage());
             return false; // 실패 시 false 반환
         }
     }
