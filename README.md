@@ -1,130 +1,176 @@
 # Meta manager for laravel
-> 라라벨용 html meta tag 관리 프로그램입니다.
+
+> 라라벨용 html meta tag 관리 프로그램입니다. SEO 최적화, SNS 공유 카드, 자동 사이트맵 생성 등 웹사이트의 메타 정보를 통합 관리하는 강력한 솔루션을 제공합니다.
 
 ## Installation
-```
+
+```bash
 composer require wangta69/laravel-meta
 php artisan pondol:install-meta
 ```
 
 ## How to Use
 
-### 메타 생성
-#### database를 생성할때 자동생성
-```
-Meta::set("Route Name", ["Route Parameters"])->update();
-```
-- controller
-```
-use Pondol\Meta\Facades\Meta;
-..........
-class SampleController extends Controller
-{
-  ..........
-  public function store(Request $request) {
-    ..........
-    Meta::set('market.item', ['item'=>(string)$item->id])
-    ->title($item->name)
-    ->description($item->shorten_description)
-    ->extractKeywordsFromArray($item->tags, 'tag')
-    ->image(\Storage::url($item->image))
-    ->update();
+### 1. 메타 정보 가져오기 & 실시간 설정
 
-  }
-  ..........
-}
-```
-### 메타 가져오기
-#### 기존에 생성된 메타 가져오기
-- controller
-```
-use Pondol\Meta\Facades\Meta;
-..........
-class ViewerController extends Controller
-{
-  ..........
-  public function store(Request $request) {
-    ..........
-    $meta = Meta::get(); // 현재의 route name 및 parameter를 이용하여 자동으로 가져옮
+가장 일반적인 사용법입니다. 컨트롤러에서 `Meta::get()`을 호출하여 현재 페이지에 해당하는 메타 정보를 가져온 후, 체이닝(Chaining) 방식으로 `title`, `description` 등을 실시간으로 설정합니다.
 
-    return view('view-blade', ['meta'=>$meta]);
-  }
-  ..........
-}
-```
-- blade
-```
-<x-pondol-meta::meta :meta="$meta"/>
-```
-#### 실시간으로 메타 생성하기
-> 검색결과 등을 메타로 처리할 경우등에 사용할 수 있습니다. <br>
-- controller
-```
-use Pondol\Meta\Facades\Meta;
-..........
-class ViewerController extends Controller
-{
-  ..........
-  public function store(Request $request) {
-    ..........
-    $meta = Meta::get()
-    ->title($request->q)
-    ->description($request->q.'에 대한 검색결과');
+- **Controller Example (`TodayController.php`)**
 
-    return view('view-blade', ['meta'=>$meta]);
-  }
-  ..........
+```php
+use Pondol\Meta\Facades\Meta;
+
+class TodayController extends Controller
+{
+    public function index()
+    {
+        $profileName = "홍길동";
+        $todaySummary = "새로운 기회가 찾아오는 날입니다.";
+
+        $meta = Meta::get()
+            ->title($profileName . '님의 오늘의 운세 (' . date('n월 j일') . ')')
+            ->description($todaySummary . ' ' . $profileName . '님을 위한 오늘의 운세 종합 브리핑입니다.')
+            ->keywords($profileName . ' 운세, 오늘의 운세, 띠별 운세, 별자리 운세');
+
+        return view('view-blade', ['meta' => $meta]);
+    }
 }
 ```
 
-#### 기존 메타에 내용 추가하기
+- **Blade Example (`view-blade.blade.php`)**
+
+```blade
+<head>
+    ...
+    <title>@yield('title', $meta->title)</title>
+    <x-pondol-meta::meta :meta="$meta"/>
+    ...
+</head>
 ```
- $meta = Meta::get()
-  ->suffix(function($suffix) use($page){
-    $suffix->title = ' '.$page.'page';
-  });
+
+---
+
+### 2. 고급 SEO 기능
+
+#### Canonical URL (대표 URL) 설정
+
+`?page=2` 와 같이 파라미터가 붙거나 내용이 유사한 여러 페이지가 있을 때, 검색 엔진에 **"이 페이지의 진짜 원본은 이것이다"** 라고 알려주는 매우 중요한 SEO 기능입니다.
+
+- **Controller Example (`CalendarController.php`)**
+
+```php
+$meta = Meta::get()
+    ->title('2025년 11월 음력 달력')
+    // '오늘'이 속한 달의 URL을 대표 URL로 지정
+    ->canonical(route('calendar.lunar', ['year' => date('Y'), 'month' => date('m')]));
 ```
-### Meta::get()
-> Meta::get() 을 사용하면 현재 동일 라우터 명과 파라미터에 대해서 데이타를 가져오지만 없을 경우 새롭게 추가를 합니다. <br>
-> 따라서 laravel meta 에서 제공하는 관리자 모드로 접근하여 관련 메타 정보를 변경가능합니다. <br>
-> 먼저 config/pondol-meta.php에서 접근권한을 변경한 후 아래처럼 typing하시면 관리자 모드로 접근 하실 수 있습니다. <br>
+
+- **결과 HTML:**
+
+```html
+<link
+  rel="canonical"
+  href="https://yourdomain.com/calendar/lunar?year=2025&month=11"
+/>
+```
+
+#### Robots 태그 설정
+
+검색 엔진의 수집(crawling) 및 색인(indexing) 동작을 제어합니다. 기본값은 `index,follow` 입니다.
+
+- **Controller Example (개인정보 수정 페이지 등)**
+
+```php
+$meta = Meta::get()
+    ->title('개인정보 수정')
+    // 이 페이지는 검색 결과에 노출시키지 않음
+    ->robots('noindex, nofollow');
+```
+
+- **결과 HTML:**
+
+```html
+<meta name="robots" content="noindex, nofollow" />
+```
+
+---
+
+### 3. SNS 공유 (OG Image)
+
+카카오톡이나 페이스북으로 공유될 때 보이는 OG 이미지를 설정합니다.
+
+#### 기존 이미지 사용
+
+```php
+$meta = Meta::get()->image('/storage/images/my_og_image.jpg');
+```
+
+#### 실시간 텍스트 이미지 생성
+
+운세 결과처럼 개인화된 텍스트를 담은 이미지를 동적으로 생성하여 공유 효과를 극대화할 수 있습니다.
+
+```php
+$meta = Meta::get()
+    ->title('홍길동님의 2025년 토정비결')
+    ->create_image(function($image) {
+        // 이미지에 삽입될 텍스트 (줄바꿈 가능)
+        $image->text = "홍길동님의 2025년\n새로운 기회가 가득한 한 해!";
+
+        // (선택사항) 기본 설정 외에 실시간으로 변경 가능
+        // $image->background_image = '/path/to/custom_background.jpg';
+        // $image->font = '/path/to/custom_font.ttf';
+        // $image->fontSize = 48;
+
+        $image->create();
+    });
+```
+
+_(기본 이미지 설정은 `config/pondol-meta.php` 파일에서 변경할 수 있습니다.)_
+
+---
+
+### 4. 데이터베이스 연동 및 관리자 페이지
+
+`Meta::get()`은 현재 라우트 정보를 기반으로 `metas` 데이터베이스 테이블에서 정보를 조회합니다. 만약 정보가 없으면 새롭게 생성하고, 있다면 기존 정보를 가져옵니다.
+
+#### 데이터베이스에 메타 정보 저장/수정
+
+게시물이나 상품처럼 콘텐츠가 생성/수정될 때 `Meta::set()`을 사용하여 메타 정보를 데이터베이스에 직접 저장하거나 업데이트할 수 있습니다.
+
+- **Controller Example (`ItemController.php`)**
+
+```php
+public function store(Request $request)
+{
+    // ... (상품 저장 로직) ...
+
+    Meta::set('items.show', ['item' => $item->id]) // 라우트 이름과 파라미터
+        ->title($item->name)
+        ->description($item->description)
+        ->image($item->main_image_url)
+        ->update(); // 데이터베이스에 저장/업데이트
+}
+```
+
+#### 관리자 페이지
+
+`config/pondol-meta.php`에서 접근 권한을 설정한 후, 아래 URL로 접속하여 사이트의 모든 페이지에 대한 메타 정보를 웹에서 직접 관리할 수 있습니다.
+
 ```
 yourDomain/meta/admin
 ```
 
-### og:image
-> og:image는 이미 존재하는 이미지를 가져오는 방식과 실시간으로 이미지를 생성하는 방식 두가지를 제공합니다.
-#### 기존 이미지를 넣기
-```
-Meta::get()->image(Put image path);
-```
-
-#### 실시간 이미지 생성
-> $image->create(); 사용시 config/pondol-meta.php에서 정의된 dummy_image 의 정보를 이용하여 백그라운드가 존재하는 텍스트 이미지를 생성합니다.
-```
-$meta = Meta::get()->create_image(function($image){
-  $image->create();
-});
-```
-> config 파일외에 실시간으로 변경하고자 하면 아래처럼 변경하고자 하는 값을 넣어 주시면 됩니다.
-```
-$meta = Meta::get()->create_image(function($image){
-  $image->save_path = '';
-  $image->background_image = '';
-  $image->font = '';
-  $image->fontSize = '';
-
-  $image->create();
-});
-```
+---
 
 ## SiteMap
-> Pondol Meta 는 기본적으로 google 등을 위한 사이트 맵도 기본 적으로 제공합니다. <br>
-> 기본 제공 경로를 바꾸시려면 config/pondol-meta.php에서 'route_sitemap.prefix' 속성을 변경하시면 됩니다.
-```
-YourDomain/meta/{vendor}.xml
 
-YourDomain/meta/google.xml
-YourDomain/meta/naver.xml
+Pondol Meta는 `metas` 데이터베이스에 저장된 모든 URL을 기반으로 검색 엔진 제출용 사이트맵을 자동으로 생성합니다.
+
+- **제공 URL:**
+
+```
+yourDomain/meta/google.xml
+yourDomain/meta/naver.xml
 ```
 
+_(사이트맵 URL 경로는 `config/pondol-meta.php`의 `'route_sitemap.prefix'` 설정에서 변경할 수 있습니다.)_
