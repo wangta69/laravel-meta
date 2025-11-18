@@ -1,6 +1,6 @@
 # Meta manager for laravel
 
-> 라라벨용 html meta tag 관리 프로그램입니다. SEO 최적화, SNS 공유 카드, 자동 사이트맵 생성 등 웹사이트의 메타 정보를 통합 관리하는 강력한 솔루션을 제공합니다.
+> 라라벨용 HTML 메타 태그 관리 프로그램입니다. SEO 최적화, SNS 공유 카드, **JSON-LD 구조화된 데이터**, 자동 사이트맵 생성 등 웹사이트의 메타 정보를 통합 관리하는 강력한 솔루션을 제공합니다.
 
 ## Installation
 
@@ -9,35 +9,38 @@ composer require wangta69/laravel-meta
 php artisan pondol:install-meta
 ```
 
+_설치 후 `config/pondol-meta.php` 파일에서 사이트의 기본 설정을 확인하세요._
+
 ## How to Use
 
-### 1. 메타 정보 가져오기 & 실시간 설정
+`Pondol\Meta` 패키지는 컨트롤러에서 `Meta` Facade를 사용하여 매우 쉽고 직관적으로 사용할 수 있습니다.
 
-가장 일반적인 사용법입니다. 컨트롤러에서 `Meta::get()`을 호출하여 현재 페이지에 해당하는 메타 정보를 가져온 후, 체이닝(Chaining) 방식으로 `title`, `description` 등을 실시간으로 설정합니다.
+### 1. 기본 사용법: 실시간 메타 정보 설정
 
-- **Controller Example (`TodayController.php`)**
+컨트롤러에서 `Meta::get()`을 호출하여 현재 페이지의 메타 객체를 가져온 후, 체이닝(Chaining) 방식으로 `title`, `description` 등을 설정합니다.
+
+- **Controller Example (블로그 게시물 페이지)**
 
 ```php
 use Pondol\Meta\Facades\Meta;
 
-class TodayController extends Controller
+class PostController extends Controller
 {
-    public function index()
+    public function show($id)
     {
-        $profileName = "홍길동";
-        $todaySummary = "새로운 기회가 찾아오는 날입니다.";
+        $post = Post::findOrFail($id);
 
         $meta = Meta::get()
-            ->title($profileName . '님의 오늘의 운세 (' . date('n월 j일') . ')')
-            ->description($todaySummary . ' ' . $profileName . '님을 위한 오늘의 운세 종합 브리핑입니다.')
-            ->keywords($profileName . ' 운세, 오늘의 운세, 띠별 운세, 별자리 운세');
+            ->title($post->title . ' - ' . config('app.name'))
+            ->description(Str::limit($post->content, 155))
+            ->keywords($post->tags->pluck('name')->implode(', '));
 
-        return view('view-blade', ['meta' => $meta]);
+        return view('posts.show', ['meta' => $meta, 'post' => $post]);
     }
 }
 ```
 
-- **Blade Example (`view-blade.blade.php`)**
+- **Blade Example (`posts/show.blade.php`)**
 
 ```blade
 <head>
@@ -54,35 +57,28 @@ class TodayController extends Controller
 
 #### Canonical URL (대표 URL) 설정
 
-`?page=2` 와 같이 파라미터가 붙거나 내용이 유사한 여러 페이지가 있을 때, 검색 엔진에 **"이 페이지의 진짜 원본은 이것이다"** 라고 알려주는 매우 중요한 SEO 기능입니다.
-
-- **Controller Example (`CalendarController.php`)**
+유사한 콘텐츠를 가진 여러 URL 중, 검색 엔진에 "이 페이지가 원본이다"라고 알려주는 중요한 SEO 태그입니다.
 
 ```php
 $meta = Meta::get()
-    ->title('2025년 11월 음력 달력')
-    // '오늘'이 속한 달의 URL을 대표 URL로 지정
-    ->canonical(route('calendar.lunar', ['year' => date('Y'), 'month' => date('m')]));
+    ->title('자유 게시판 - 2페이지')
+    // 파라미터가 없는 기본 URL을 대표 URL로 지정
+    ->canonical(route('posts.index'));
 ```
 
-- **결과 HTML:**
+- **결과 HTML (`/posts?page=2` 에서):**
 
 ```html
-<link
-  rel="canonical"
-  href="https://yourdomain.com/calendar/lunar?year=2025&month=11"
-/>
+<link rel="canonical" href="https://yourdomain.com/posts" />
 ```
 
 #### Robots 태그 설정
 
-검색 엔진의 수집(crawling) 및 색인(indexing) 동작을 제어합니다. 기본값은 `index,follow` 입니다.
-
-- **Controller Example (개인정보 수정 페이지 등)**
+검색 엔진의 수집 및 색인 동작을 제어합니다. (기본값: `index,follow`)
 
 ```php
 $meta = Meta::get()
-    ->title('개인정보 수정')
+    ->title('이벤트 준비중')
     // 이 페이지는 검색 결과에 노출시키지 않음
     ->robots('noindex, nofollow');
 ```
@@ -95,60 +91,102 @@ $meta = Meta::get()
 
 ---
 
-### 3. SNS 공유 (OG Image)
+### 3. JSON-LD 구조화된 데이터 (강력 추천)
 
-카카오톡이나 페이스북으로 공유될 때 보이는 OG 이미지를 설정합니다.
+검색 결과에서 별점, FAQ 등 '리치 스니펫'을 표시하여 클릭률을 높이는 가장 강력한 SEO 기능입니다.
+
+#### 방법 1: 자동 생성 (가장 쉬운 방법)
+
+`->title()`, `->description()` 등을 설정한 후, `->type()`으로 타입을 지정하고 마지막에 **`->structuredData()`**를 파라미터 없이 호출하면 끝입니다.
+
+- **Controller Example (`Service` 타입)**
+
+```php
+$meta = Meta::get()
+    ->title('프리미엄 세차 서비스 - 카 워시') // '프리미엄 세차 서비스'를 serviceType으로 자동 추출
+    ->description('최고급 왁스를 사용한 디테일링 세차 서비스입니다.')
+    ->type('Service')      // 1. @type을 'Service'로 지정
+    ->structuredData();   // 2. 자동 생성 실행!
+```
+
+#### 방법 2: FAQ 빌더 (Q&A 페이지에 최적)
+
+`->type('FAQPage')`와 함께 `->faq()` 빌더를 사용하면, 복잡한 배열 없이도 직관적으로 FAQ 스키마를 만들 수 있습니다.
+
+- **Controller Example (`FaqController.php`)**
+
+```php
+$meta = Meta::get()
+    ->title('자주 묻는 질문 - 고객센터')
+    ->description('서비스 이용에 대한 모든 궁금증을 해결해 드립니다.')
+    ->type('FAQPage')
+    ->faq(function($meta) {
+        $meta->addFaq('환불 규정은 어떻게 되나요?', '서비스 이용 전에는 100% 환불이 가능합니다.');
+        $meta->addFaq('해외에서도 사용 가능한가요?', '네, 전 세계 어디서든 이용 가능합니다.');
+    })
+    ->structuredData();
+```
+
+#### 방법 3: 수동 설정 (커스텀 스키마)
+
+`Article`, `Service`, `FAQPage` 외의 다른 타입을 사용하고 싶을 경우, 직접 `Schema.org` 규격에 맞는 배열을 만들어 전달할 수 있습니다.
+
+```php
+$schema = [
+    '@context' => 'https://schema.org',
+    '@type' => 'Product',
+    'name' => 'Awesome T-Shirt',
+    // ... (상품 관련 다른 스키마 정보)
+];
+
+$meta = Meta::get()->structuredData($schema);
+```
+
+---
+
+### 4. SNS 공유 (OG Image)
 
 #### 기존 이미지 사용
 
 ```php
-$meta = Meta::get()->image('/storage/images/my_og_image.jpg');
+$meta = Meta::get()->image('/storage/images/default-og-image.jpg');
 ```
 
 #### 실시간 텍스트 이미지 생성
 
-운세 결과처럼 개인화된 텍스트를 담은 이미지를 동적으로 생성하여 공유 효과를 극대화할 수 있습니다.
+개인화된 텍스트를 담은 이미지를 동적으로 생성하여 SNS 공유 효과를 극대화합니다.
 
 ```php
 $meta = Meta::get()
-    ->title('홍길동님의 2025년 토정비결')
+    ->title('새로운 이벤트에 당신을 초대합니다!')
     ->create_image(function($image) {
-        // 이미지에 삽입될 텍스트 (줄바꿈 가능)
-        $image->text = "홍길동님의 2025년\n새로운 기회가 가득한 한 해!";
-
-        // (선택사항) 기본 설정 외에 실시간으로 변경 가능
-        // $image->background_image = '/path/to/custom_background.jpg';
-        // $image->font = '/path/to/custom_font.ttf';
-        // $image->fontSize = 48;
-
+        $image->text = "Awesome Shop\n신규 회원 20% 할인 이벤트";
         $image->create();
     });
 ```
 
-_(기본 이미지 설정은 `config/pondol-meta.php` 파일에서 변경할 수 있습니다.)_
+_(기본 배경, 폰트 등은 `config/pondol-meta.php`에서 설정할 수 있습니다.)_
 
 ---
 
-### 4. 데이터베이스 연동 및 관리자 페이지
+### 5. 데이터베이스 연동 및 관리자 페이지
 
-`Meta::get()`은 현재 라우트 정보를 기반으로 `metas` 데이터베이스 테이블에서 정보를 조회합니다. 만약 정보가 없으면 새롭게 생성하고, 있다면 기존 정보를 가져옵니다.
+#### 데이터베이스에 메타 정보 저장/수정 (`Meta::set()`)
 
-#### 데이터베이스에 메타 정보 저장/수정
+콘텐츠가 생성/수정될 때 `Meta::set()`을 사용하여 메타 정보를 데이터베이스에 영구적으로 저장하거나 업데이트할 수 있습니다.
 
-게시물이나 상품처럼 콘텐츠가 생성/수정될 때 `Meta::set()`을 사용하여 메타 정보를 데이터베이스에 직접 저장하거나 업데이트할 수 있습니다.
-
-- **Controller Example (`ItemController.php`)**
+- **Controller Example**
 
 ```php
 public function store(Request $request)
 {
-    // ... (상품 저장 로직) ...
+    // ... (게시물 저장 로직) ...
+    $post = Post::create(...);
 
-    Meta::set('items.show', ['item' => $item->id]) // 라우트 이름과 파라미터
-        ->title($item->name)
-        ->description($item->description)
-        ->image($item->main_image_url)
-        ->update(); // 데이터베이스에 저장/업데이트
+    Meta::set('posts.show', ['post' => $post->id])
+        ->title($post->title)
+        ->description(Str::limit($post->content, 155))
+        ->update(); // DB에 저장
 }
 ```
 
@@ -164,7 +202,7 @@ yourDomain/meta/admin
 
 ## SiteMap
 
-Pondol Meta는 `metas` 데이터베이스에 저장된 모든 URL을 기반으로 검색 엔진 제출용 사이트맵을 자동으로 생성합니다.
+`metas` 데이터베이스에 저장된 모든 URL을 기반으로 검색 엔진 제출용 사이트맵을 자동으로 생성합니다.
 
 - **제공 URL:**
 
