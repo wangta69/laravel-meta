@@ -194,73 +194,74 @@ class Meta
      */
     public function structuredData(array $data = null)
     {
-        $schema = [];
+        // 1. 자동 생성 로직을 '항상' 먼저 실행하여 기본 스키마($autoSchema)를 생성합니다.
+        $autoSchema = [];
+        $autoSchema['@context'] = 'https://schema.org';
+        $autoSchema['@type'] = $this->structuredDataType;
 
-        // 1. 파라미터 유무에 따라 $schema 변수 준비
-        if (is_null($data)) {
-            // 자동 생성 로직: 파라미터가 없으면 내부 정보를 바탕으로 $schema 배열 생성
-            $schema['@context'] = 'https://schema.org';
-            $schema['@type'] = $this->structuredDataType;
+        switch ($this->structuredDataType) {
+            case 'Article':
+                $autoSchema['headline'] = $this->title;
+                $autoSchema['description'] = $this->description;
+                $autoSchema['image'] = $this->og->image ? url($this->og->image) : null;
+                $autoSchema['author'] = config('pondol-meta.structured_data.author');
+                $autoSchema['publisher'] = config('pondol-meta.structured_data.publisher');
+                $autoSchema['datePublished'] = $this->created_at ? $this->created_at->toIso8601String() : null;
+                $autoSchema['dateModified'] = $this->updated_at ? $this->updated_at->toIso8601String() : null;
+                break;
+            case 'Service':
+                $serviceType = $this->title;
+                if (str_contains($serviceType, ' - ')) {
+                    $serviceType = explode(' - ', $serviceType)[0];
+                }
+                if (str_contains($serviceType, '(')) {
+                    $serviceType = explode(' (', $serviceType)[0];
+                }
+                if (str_contains($serviceType, '님의 ')) {
+                    $serviceType = explode('님의 ', $serviceType)[1];
+                }
 
-            switch ($this->structuredDataType) {
-                case 'Article':
-                    $schema['headline'] = $this->title;
-                    $schema['description'] = $this->description;
-                    $schema['image'] = $this->og->image ? url($this->og->image) : null;
-                    $schema['author'] = config('pondol-meta.structured_data.author');
-                    $schema['publisher'] = config('pondol-meta.structured_data.publisher');
-                    $schema['datePublished'] = $this->created_at ? $this->created_at->toIso8601String() : null;
-                    $schema['dateModified'] = $this->updated_at ? $this->updated_at->toIso8601String() : null;
-                    break;
-                case 'Service':
-                    $serviceType = $this->title;
-                    if (str_contains($serviceType, ' - ')) {
-                        $serviceType = explode(' - ', $serviceType)[0];
-                    }
-                    if (str_contains($serviceType, '(')) {
-                        $serviceType = explode(' (', $serviceType)[0];
-                    }
-                    if (str_contains($serviceType, '님의 ')) {
-                        $serviceType = explode('님의 ', $serviceType)[1];
-                    }
-
-                    $schema['name'] = $this->title;
-                    $schema['serviceType'] = trim($serviceType);
-                    $schema['provider'] = config('pondol-meta.structured_data.publisher');
-                    $schema['description'] = $this->description;
-                    $schema['image'] = $this->og->image ? url($this->og->image) : null;
-                    break;
-                case 'WebPage':
-                    $schema['name'] = $this->title;
-                    $schema['description'] = $this->description;
-                    $schema['publisher'] = config('pondol-meta.structured_data.publisher');
-                    break;
-                case 'FAQPage':
-                    $schema['mainEntity'] = $this->faqItems;
-                    break;
-                default:
-                    $schema['name'] = $this->title;
-                    $schema['description'] = $this->description;
-                    break;
-            }
-        } else {
-            // 수동 설정: 파라미터가 있으면 그 데이터를 그대로 $schema 변수에 할당
-            $schema = $data;
+                $autoSchema['name'] = $this->title;
+                $autoSchema['serviceType'] = trim($serviceType);
+                $autoSchema['provider'] = config('pondol-meta.structured_data.publisher');
+                $autoSchema['description'] = $this->description;
+                $autoSchema['image'] = $this->og->image ? url($this->og->image) : null;
+                break;
+            case 'WebPage':
+                $autoSchema['name'] = $this->title;
+                $autoSchema['description'] = $this->description;
+                $autoSchema['publisher'] = config('pondol-meta.structured_data.publisher');
+                break;
+            case 'FAQPage':
+                // 타입이 FAQPage'만'으로 설정된 경우, mainEntity를 여기에 직접 할당합니다.
+                $autoSchema['mainEntity'] = $this->faqItems;
+                break;
+            default:
+                // Article, Service, WebPage가 아닌 다른 모든 타입의 기본값
+                $autoSchema['name'] = $this->title;
+                $autoSchema['description'] = $this->description;
+                break;
         }
 
-        // 2. $schema가 어떤 방식으로 생성되었든 상관없이, 공통 후처리 로직을 항상 실행합니다.
+        // FAQ 데이터가 있고, 현재 타입이 FAQPage가 아닐 경우, mainEntity를 추가합니다.
+        if (!empty($this->faqItems) && $this->structuredDataType !== 'FAQPage') {
+            $autoSchema['mainEntity'] = $this->faqItems;
+        }
 
-        // 'publisher' 키 확인 및 URL 변환
+        // 2. 파라미터로 받은 수동 데이터($data)를 자동 생성된 스키마($autoSchema)에 '병합'합니다.
+        //    $data가 null이면 $autoSchema를 그대로 사용하고, $data가 있으면 두 배열을 합칩니다.
+        //    array_merge는 뒤에 오는 배열의 값으로 키를 덮어씁니다.
+        $schema = is_null($data) ? $autoSchema : array_merge($autoSchema, $data);
+
+        // 3. 공통 후처리 로직 (URL 변환 등 - 기존과 동일)
         if (isset($schema['publisher']['logo']['url']) && !str_starts_with($schema['publisher']['logo']['url'], 'http')) {
             $schema['publisher']['logo']['url'] = url($schema['publisher']['logo']['url']);
         }
-        // 'provider' 키 확인 및 URL 변환 (Service 타입용)
         if (isset($schema['provider']['logo']['url']) && !str_starts_with($schema['provider']['logo']['url'], 'http')) {
             $schema['provider']['logo']['url'] = url($schema['provider']['logo']['url']);
         }
 
-        // 3. 최종적으로 클래스 속성에 데이터를 할당합니다.
-        // 값이 null인 키는 제거하고, 기존 데이터와 병합합니다.
+        // 4. 최종적으로 클래스 속성에 데이터를 병합합니다. (null 값 제거 포함)
         $this->structuredData = array_merge((array) $this->structuredData, array_filter($schema, fn ($value) => !is_null($value)));
 
         return $this;
@@ -342,15 +343,25 @@ class Meta
         $twitter = [];
 
         foreach ($this as $key => $value) {
-            // 배열이나 객체인 속성은 $meta 배열에 포함시키지 않도록 조건을 추가합니다. ▼▼▼
             if (is_array($value) || is_object($value)) {
-                // og, twitter 객체는 별도로 처리
                 if ($key === 'og') {
                     foreach ($value as $og_key => $og_value) {
+                        // [수정] 이미지 경로 처리 로직 강화
                         if ($og_key === 'image' && $og_value) {
-                            $og_value = config('app.url') . $og_value;
+                            // 1. 절대 경로(http...)가 아닌 경우에만 도메인 붙이기
+                            if (!str_starts_with($og_value, 'http://') && !str_starts_with($og_value, 'https://')) {
+
+                                // 2. [핵심] 도메인 끝의 슬래시 제거 + 경로 앞의 슬래시 추가 보장
+                                $baseUrl = rtrim(config('app.url'), '/'); // 도메인 뒤 '/' 제거
+                                $path = \Illuminate\Support\Str::start($og_value, '/'); // 경로 앞 '/' 강제 추가
+
+                                $og_value = $baseUrl . $path;
+                            }
+
                             $og[$og_key] = $og_value;
-                            $twitter[$og_key] = $og_value;
+
+                            // 트위터 이미지도 동기화
+                            $twitter['image'] = $og_value;
                         } else {
                             $og[$og_key] = $og_value;
                         }
@@ -360,27 +371,22 @@ class Meta
                         $twitter[$tw_key] = $tw_value;
                     }
                 }
-                // structuredData (배열) 등 다른 객체/배열 속성은 무시하고 넘어갑니다.
                 continue;
             }
 
-            // 문자열 또는 숫자 등 스칼라 타입의 값만 $meta 배열에 할당됩니다.
+            // ... (아래 스위치문은 기존과 동일) ...
             switch ($key) {
                 case 'id': case 'path': case 'created_at': case 'updated_at':
-                    break; // $meta 배열에 포함시키지 않을 속성들
-
+                    break;
                 case 'description':
                     $meta[$key] = $value;
                     $og[$key] = $value;
                     $twitter[$key] = $value;
                     break;
-
                 case 'title':
                     $og[$key] = $value;
                     $twitter[$key] = $value;
-                    // $meta 배열에는 title을 넣지 않습니다. <title> 태그에서 별도로 사용하기 때문입니다.
                     break;
-
                 default:
                     $meta[$key] = $value;
                     break;
