@@ -2,13 +2,12 @@
 
 namespace Pondol\Meta\Http\Controllers\Admin;
 
-use Illuminate\Support\Facades\Validator;
+use App\Http\Controllers\Controller;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
-use Carbon\Carbon;
-use Pondol\Meta\Models\Meta;
-use App\Http\Controllers\Controller;
 use Pondol\IndexNow\Jobs\IndexNow;
+use Pondol\Meta\Models\Meta;
 
 class MetaController extends Controller
 {
@@ -17,9 +16,8 @@ class MetaController extends Controller
      *
      * @return void
      */
-    public function __construct()
-    {
-    }
+    public function __construct() {}
+
     /**
      * 회원가입시 이메일 유효성 및 중복 체크
      */
@@ -33,22 +31,20 @@ class MetaController extends Controller
         $items = Meta::select('*');
 
         if ($sv) {
-            $items = $items->where($sk, 'like', '%' . $sv . '%');
+            $items = $items->where($sk, 'like', '%'.$sv.'%');
         }
 
         if ($from_date) {
-            if (!$to_date) {
-                $to_date = date("Y-m-d");
+            if (! $to_date) {
+                $to_date = date('Y-m-d');
             }
 
             $from_date = Carbon::createFromFormat('Y-m-d', $from_date);
             $to_date = Carbon::createFromFormat('Y-m-d', $to_date);
-            $items =  $items->whereBetween('metas.created_at', [$from_date->startOfDay(), $to_date->endOfDay()]);
+            $items = $items->whereBetween('metas.created_at', [$from_date->startOfDay(), $to_date->endOfDay()]);
         }
 
-
         $items = $items->orderBy('id', 'desc')->paginate(20)->appends(request()->query());
-
 
         return view('pondol-meta::admin.index', compact('items'));
     }
@@ -74,6 +70,7 @@ class MetaController extends Controller
         if ($request->back) {
             return redirect()->back();
         }
+
         return redirect()->route('meta.admin.index');
     }
 
@@ -94,7 +91,7 @@ class MetaController extends Controller
 
     public function store(Request $request)
     {
-        $item = new Meta();
+        $item = new Meta;
         $item->title = $request->title;
         $item->keywords = $request->keywords;
         $item->image = $request->image;
@@ -110,6 +107,7 @@ class MetaController extends Controller
         if ($request->back) {
             return redirect()->back();
         }
+
         return redirect()->route('meta.admin.index');
     }
 
@@ -119,11 +117,48 @@ class MetaController extends Controller
 
         if ($result !== false) {
             // 성공했을 경우
-            $message = 'sitemap.xml 파일이 성공적으로 생성되었습니다. (' . $result . '개의 URL 포함)';
+            $message = 'sitemap.xml 파일이 성공적으로 생성되었습니다. ('.$result.'개의 URL 포함)';
+
             return redirect()->route('meta.admin.index')->with('success', $message);
         } else {
             // 실패했을 경우
             return redirect()->route('meta.admin.index')->with('error', 'sitemap.xml 파일 생성에 실패했습니다. 로그를 확인해주세요.');
         }
+    }
+
+    public function indexNow(Request $request, Meta $item)
+    {
+        // print_r($item);
+
+        if ($item->path) {
+            $url = $this->normalizeUrlPath($item->path);
+            Log::info('indexNow url:'.$url);
+            IndexNow::dispatch($url);
+        }
+
+        return redirect()->back();
+
+    }
+
+    public function normalizeUrlPath($path)
+    {
+        // 도메인은 항상 이걸로 통일
+        $base = config('app.url');
+
+        // 1) 완전한 URL인 경우
+        if (str_starts_with($path, 'http://') || str_starts_with($path, 'https://')) {
+            $parsed = parse_url($path);
+            $cleanPath = $parsed['path'] ?? '';
+
+            return rtrim($base, '/').'/'.ltrim($cleanPath, '/');
+        }
+
+        // 2) /path 형태
+        if (str_starts_with($path, '/')) {
+            return rtrim($base, '/').'/'.ltrim($path, '/');
+        }
+
+        // 3) path 형태
+        return rtrim($base, '/').'/'.ltrim($path, '/');
     }
 }

@@ -8,3 +8,5 @@ Route::delete('delete/{item}', 'MetaController@destory')->name('delete');
 Route::get('create', 'MetaController@create')->name('create');
 Route::post('create', 'MetaController@store');
 Route::get('create-sitemap', 'MetaController@createSitemap')->name('create.sitemap');
+
+Route::post('indexnow/{item}', 'MetaController@indexNow')->name('index-now');

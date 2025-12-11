@@ -15,7 +15,9 @@ _설치 후 `config/pondol-meta.php` 파일에서 사이트의 기본 설정을 
 
 `Pondol\Meta` 패키지는 컨트롤러에서 `Meta` Facade를 사용하여 매우 쉽고 직관적으로 사용할 수 있습니다.
 
-### 1. 기본 사용법: 실시간 메타 정보 설정
+### 1. 실시간 메타 정보 설정
+
+#### 1.1 기본 설정
 
 컨트롤러에서 `Meta::get()`을 호출하여 현재 페이지의 메타 객체를 가져온 후, 체이닝(Chaining) 방식으로 `title`, `description` 등을 설정합니다.
 
@@ -53,7 +55,7 @@ class PostController extends Controller
 
 ---
 
-### 2. 고급 SEO 기능
+#### 1.2. 고급 SEO 기능
 
 #### Canonical URL (대표 URL) 설정
 
@@ -72,7 +74,7 @@ $meta = Meta::get()
 <link rel="canonical" href="https://yourdomain.com/posts" />
 ```
 
-#### Robots 태그 설정
+#### 1.3. Robots 태그 설정
 
 검색 엔진의 수집 및 색인 동작을 제어합니다. (기본값: `index,follow`)
 
@@ -91,7 +93,7 @@ $meta = Meta::get()
 
 ---
 
-### 3. JSON-LD 구조화된 데이터 (강력 추천)
+#### 1.4. JSON-LD 구조화된 데이터 (강력 추천)
 
 검색 결과에서 별점, FAQ 등 '리치 스니펫'을 표시하여 클릭률을 높이는 가장 강력한 SEO 기능입니다.
 
@@ -109,7 +111,7 @@ $meta = Meta::get()
     ->structuredData();   // 2. 자동 생성 실행!
 ```
 
-#### 방법 2: FAQ 빌더 (Q&A 페이지에 최적)
+#### 1.5. FAQ 빌더 (Q&A 페이지에 최적)
 
 `->type('FAQPage')`와 함께 `->faq()` 빌더를 사용하면, 복잡한 배열 없이도 직관적으로 FAQ 스키마를 만들 수 있습니다.
 
@@ -127,7 +129,7 @@ $meta = Meta::get()
     ->structuredData();
 ```
 
-#### 방법 3: 수동 설정 (커스텀 스키마)
+#### 1.6. 커스텀 스키마
 
 `Article`, `Service`, `FAQPage` 외의 다른 타입을 사용하고 싶을 경우, 직접 `Schema.org` 규격에 맞는 배열을 만들어 전달할 수 있습니다.
 
@@ -144,15 +146,15 @@ $meta = Meta::get()->structuredData($schema);
 
 ---
 
-### 4. SNS 공유 (OG Image)
+#### 1.7. SNS 공유 (OG Image)
 
-#### 기존 이미지 사용
+##### 기존 이미지 사용
 
 ```php
 $meta = Meta::get()->image('/storage/images/default-og-image.jpg');
 ```
 
-#### 실시간 텍스트 이미지 생성
+##### 실시간 텍스트 이미지 생성
 
 개인화된 텍스트를 담은 이미지를 동적으로 생성하여 SNS 공유 효과를 극대화합니다.
 
@@ -169,9 +171,17 @@ _(기본 배경, 폰트 등은 `config/pondol-meta.php`에서 설정할 수 있�
 
 ---
 
-### 5. 데이터베이스 연동 및 관리자 페이지
+### 2. 관리자 페이지에서 관리하기
 
-#### 데이터베이스에 메타 정보 저장/수정 (`Meta::set()`)
+#### 관리자 페이지
+
+`config/pondol-meta.php`에서 접근 권한을 설정한 후, 아래 URL로 접속하여 사이트의 모든 페이지에 대한 메타 정보를 웹에서 직접 관리할 수 있습니다.
+
+```
+yourDomain/meta/admin
+```
+
+#### 2.1 데이터베이스에 메타 정보 저장/수정 (`Meta::set()`)
 
 콘텐츠가 생성/수정될 때 `Meta::set()`을 사용하여 메타 정보를 데이터베이스에 영구적으로 저장하거나 업데이트할 수 있습니다.
 
@@ -190,12 +200,25 @@ public function store(Request $request)
 }
 ```
 
-#### 관리자 페이지
+### 3. 프론트 페이지에서 관리하기
 
-`config/pondol-meta.php`에서 접근 권한을 설정한 후, 아래 URL로 접속하여 사이트의 모든 페이지에 대한 메타 정보를 웹에서 직접 관리할 수 있습니다.
+프론트 페이지에서 현재 페이지를 보면서 관리 하는 방식입니다.
+
+#### 3.1 Component 세팅
+
+원하는 페이지에서 아래 component를 blade에 넣어두면 관리자 권하시 입력폼이 디스플레이 됩니다.
 
 ```
-yourDomain/meta/admin
+<x-pondol-meta::edit-auth :meta="$meta ?? null" />
+
+```
+
+#### 3.2 Indexnow 로 보내기
+
+`<`x-pondol-meta::edit-auth `/>` 를 사용할때는 자동으로 설정되나 indexnow로 전송을 별도로 하고 싶을 경우 아래 component를 호출하면 됩니다.
+
+```
+<x-pondol-meta::indexnow-auth :meta="$meta ?? null" />
 ```
 
 ---
