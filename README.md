@@ -1,3 +1,5 @@
+This library is used in the production of [gilra.kr](https://www.gilra.kr) (Online Fortune Service).
+
 # Meta manager for laravel
 
 > 라라벨용 HTML 메타 태그 관리 프로그램입니다. SEO 최적화, SNS 공유 카드, **JSON-LD 구조화된 데이터**, 자동 사이트맵 생성 등 웹사이트의 메타 정보를 통합 관리하는 강력한 솔루션을 제공합니다.
