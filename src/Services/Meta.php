@@ -4,38 +4,49 @@ namespace Pondol\Meta\Services;
 
 use Illuminate\Support\Facades\Route;
 use Pondol\Meta\Models\Meta as mMeta;
-use Pondol\Meta\Services\Image;
 
 class Meta
 {
     public $id;
+
     public $title = '';
+
     public $keywords = '';
+
     public $description = '';
+
     public $path;
+
     public $created_at;
+
     public $updated_at;
+
     public $og;
+
     public $twitter;
+
     public $robots = 'index,follow';
+
     public $canonical = null;
+
     public $structuredData = [];
+
     private $structuredDataType = 'Article'; // 기본 @type을 Article로 설정
+
     private $faqItems = [];
 
     public function __construct()
     {
-        $this->og = new \stdClass();
-        $this->og->type = 'article'; //'website'
+        $this->og = new \stdClass;
+        $this->og->type = 'article'; // 'website'
         $this->og->locale = 'ko_KR';
         $this->og->site_name = config('app.name', 'OnStory');
 
-        $this->twitter = new \stdClass();
+        $this->twitter = new \stdClass;
         $this->twitter->card = 'summary_large_image'; // summary
 
         $this->robots = config('pondol-meta.robots');
         $this->structuredData = [];
-
     }
 
     /**
@@ -54,7 +65,7 @@ class Meta
         $this->updated_at = $meta->updated_at;
         $this->og->image = $meta->image ?: config('pondol-meta.defaults.image');
 
-        if (!$meta->path && $route_name) {
+        if (! $meta->path && $route_name) {
             try {
                 $meta->path = str_replace(config('app.url'), '', route($route_name, $route_params));
 
@@ -65,6 +76,7 @@ class Meta
         }
 
         $this->path = $meta->path;
+
         return $this;
     }
 
@@ -73,7 +85,7 @@ class Meta
 
         $route_name = Route::currentRouteName();
         // $type='route';
-        if (!$route_name) {
+        if (! $route_name) {
             $route_name = request()->path();
             // $type='path';
         }
@@ -82,6 +94,7 @@ class Meta
         foreach (Route::getCurrentRoute()->parameterNames as $p) {
             $route_params[$p] = Route::getCurrentRoute()->originalParameter($p);
         }
+
         return $this->set($route_name, $route_params);
     }
 
@@ -90,35 +103,36 @@ class Meta
         if ($title) {
             $this->title = $title;
         }
+
         return $this;
     }
-
 
     public function keywords($keywords)
     {
         if ($keywords) {
             $this->keywords = $keywords;
         }
+
         return $this;
     }
 
     /**
      * robots 메타 태그의 content 값을 설정하는 메소드
      *
-     * @param string $content (예: 'noindex, nofollow')
+     * @param  string  $content  (예: 'noindex, nofollow')
      * @return self
      */
     public function robots(string $content)
     {
         $this->robots = $content;
+
         return $this;
     }
-
 
     /**
      * Canonical URL을 설정하는 메소드
      *
-     * @param string|null $url Canonical URL. null일 경우 자동 생성 시도.
+     * @param  string|null  $url  Canonical URL. null일 경우 자동 생성 시도.
      * @return self
      */
     public function canonical($url = null)
@@ -140,6 +154,17 @@ class Meta
     }
 
     /**
+     * OpenGraph URL을 강제로 설정하는 메서드
+     * 컨트롤러에서 ->ogUrl(...) 로 호출 가능
+     */
+    public function ogUrl($url)
+    {
+        $this->og->url = $url;
+
+        return $this;
+    }
+
+    /**
      * JSON-LD의 @type을 설정하는 헬퍼 메소드
      */
     public function type(string $type)
@@ -149,28 +174,25 @@ class Meta
         if (isset($this->structuredData['@type'])) {
             $this->structuredData['@type'] = $type;
         }
+
         return $this;
     }
-
 
     /**
      * FAQ 항목을 추가하는 빌더 메소드
      *
-     * @param \Closure $callback
      * @return self
      */
     public function faq(\Closure $callback)
     {
         // Meta 객체 자신을 콜백 함수에 전달하여, 내부에서 addFaq를 호출할 수 있게 함
         $callback($this);
+
         return $this;
     }
 
     /**
      * faq() 콜백 내부에서 사용될 헬퍼 메소드
-     *
-     * @param string $question
-     * @param string $answer
      */
     public function addFaq(string $question, string $answer)
     {
@@ -189,10 +211,10 @@ class Meta
      * 파라미터 없이 호출하면, 기존 meta 정보와 type()으로 설정된 타입을 기반으로 JSON-LD를 자동 생성합니다.
      * 파라미터로 배열을 전달하면, 해당 데이터를 기존 structuredData에 병합합니다.
      *
-     * @param array|null $data Schema.org 규격에 맞는 PHP 배열 또는 null
+     * @param  array|null  $data  Schema.org 규격에 맞는 PHP 배열 또는 null
      * @return self
      */
-    public function structuredData(array $data = null)
+    public function structuredData(?array $data = null)
     {
         // 1. 자동 생성 로직을 '항상' 먼저 실행하여 기본 스키마($autoSchema)를 생성합니다.
         $autoSchema = [];
@@ -244,7 +266,7 @@ class Meta
         }
 
         // FAQ 데이터가 있고, 현재 타입이 FAQPage가 아닐 경우, mainEntity를 추가합니다.
-        if (!empty($this->faqItems) && $this->structuredDataType !== 'FAQPage') {
+        if (! empty($this->faqItems) && $this->structuredDataType !== 'FAQPage') {
             $autoSchema['mainEntity'] = $this->faqItems;
         }
 
@@ -254,15 +276,15 @@ class Meta
         $schema = is_null($data) ? $autoSchema : array_merge($autoSchema, $data);
 
         // 3. 공통 후처리 로직 (URL 변환 등 - 기존과 동일)
-        if (isset($schema['publisher']['logo']['url']) && !str_starts_with($schema['publisher']['logo']['url'], 'http')) {
+        if (isset($schema['publisher']['logo']['url']) && ! str_starts_with($schema['publisher']['logo']['url'], 'http')) {
             $schema['publisher']['logo']['url'] = url($schema['publisher']['logo']['url']);
         }
-        if (isset($schema['provider']['logo']['url']) && !str_starts_with($schema['provider']['logo']['url'], 'http')) {
+        if (isset($schema['provider']['logo']['url']) && ! str_starts_with($schema['provider']['logo']['url'], 'http')) {
             $schema['provider']['logo']['url'] = url($schema['provider']['logo']['url']);
         }
 
         // 4. 최종적으로 클래스 속성에 데이터를 병합합니다. (null 값 제거 포함)
-        $this->structuredData = array_merge((array) $this->structuredData, array_filter($schema, fn ($value) => !is_null($value)));
+        $this->structuredData = array_merge((array) $this->structuredData, array_filter($schema, fn ($value) => ! is_null($value)));
 
         return $this;
     }
@@ -279,29 +301,35 @@ class Meta
             }
         }
         $this->keywords = implode(',', $keywords);
+
         return $this;
     }
+
     public function description($description)
     {
         if ($description) {
             $this->description = $description;
         }
+
         return $this;
     }
+
     public function image($path)
     {
         if ($path) {
             $this->og->image = $path;
         }
+
         return $this;
     }
+
     /** @deprecated */
     public function path($path)
     {
         $this->path = $path ?? $this->path;
+
         return $this;
     }
-
 
     /** @deprecated */
     public function setTitle($title)
@@ -322,22 +350,29 @@ class Meta
     {
         $c_img = new Image($this);
         $callback($c_img);
+
         return $this;
     }
 
     public function update()
     {
         mMeta::where('id', $this->id)->update([
-          'title' => $this->title,
-          'keywords' => $this->keywords,
-          'description' => $this->description,
-          'image' => $this->og->image,
-          'path' => $this->path
+            'title' => $this->title,
+            'keywords' => $this->keywords,
+            'description' => $this->description,
+            'image' => $this->og->image,
+            'path' => $this->path,
         ]);
     }
 
     public function toArray()
     {
+
+        // og:url이 별도로 설정되지 않았다면, 현재 페이지의 Full URL(파라미터 포함)을 기본값으로 설정
+        if (! isset($this->og->url)) {
+            $this->og->url = request()->fullUrl();
+        }
+
         $meta = [];
         $og = [];
         $twitter = [];
@@ -349,13 +384,13 @@ class Meta
                         // [수정] 이미지 경로 처리 로직 강화
                         if ($og_key === 'image' && $og_value) {
                             // 1. 절대 경로(http...)가 아닌 경우에만 도메인 붙이기
-                            if (!str_starts_with($og_value, 'http://') && !str_starts_with($og_value, 'https://')) {
+                            if (! str_starts_with($og_value, 'http://') && ! str_starts_with($og_value, 'https://')) {
 
                                 // 2. [핵심] 도메인 끝의 슬래시 제거 + 경로 앞의 슬래시 추가 보장
                                 $baseUrl = rtrim(config('app.url'), '/'); // 도메인 뒤 '/' 제거
                                 $path = \Illuminate\Support\Str::start($og_value, '/'); // 경로 앞 '/' 강제 추가
 
-                                $og_value = $baseUrl . $path;
+                                $og_value = $baseUrl.$path;
                             }
 
                             $og[$og_key] = $og_value;
@@ -371,6 +406,7 @@ class Meta
                         $twitter[$tw_key] = $tw_value;
                     }
                 }
+
                 continue;
             }
 
@@ -392,7 +428,7 @@ class Meta
                     break;
             }
         }
+
         return [$meta, $og, $twitter];
     }
-
 }
