@@ -365,6 +365,16 @@ class Meta
         ]);
     }
 
+    public function getTitle()
+    {
+        return $this->title;
+    }
+
+    public function getDescription()
+    {
+        return $this->description;
+    }
+
     public function toArray()
     {
 
