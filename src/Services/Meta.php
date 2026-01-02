@@ -3,6 +3,7 @@
 namespace Pondol\Meta\Services;
 
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Str;
 use Pondol\Meta\Models\Meta as mMeta;
 
 class Meta
@@ -31,7 +32,7 @@ class Meta
 
     public $structuredData = [];
 
-    private $structuredDataType = 'Article'; // 기본 @type을 Article로 설정
+    private $structuredDataType = null; // 기본 @type을 Article로 설정
 
     private $faqItems = [];
 
@@ -41,10 +42,8 @@ class Meta
         $this->og->type = 'article'; // 'website'
         $this->og->locale = 'ko_KR';
         $this->og->site_name = config('app.name', 'OnStory');
-
         $this->twitter = new \stdClass;
         $this->twitter->card = 'summary_large_image'; // summary
-
         $this->robots = config('pondol-meta.robots');
         $this->structuredData = [];
     }
@@ -171,9 +170,9 @@ class Meta
     {
         $this->structuredDataType = $type;
         // 체이닝을 위해 structuredData()를 호출하기 전에 사용 가능
-        if (isset($this->structuredData['@type'])) {
-            $this->structuredData['@type'] = $type;
-        }
+        // if (isset($this->structuredData['@type'])) {
+        //     $this->structuredData['@type'] = $type;
+        // }
 
         return $this;
     }
@@ -185,7 +184,6 @@ class Meta
      */
     public function faq(\Closure $callback)
     {
-        // Meta 객체 자신을 콜백 함수에 전달하여, 내부에서 addFaq를 호출할 수 있게 함
         $callback($this);
 
         return $this;
@@ -216,75 +214,75 @@ class Meta
      */
     public function structuredData(?array $data = null)
     {
-        // 1. 자동 생성 로직을 '항상' 먼저 실행하여 기본 스키마($autoSchema)를 생성합니다.
         $autoSchema = [];
-        $autoSchema['@context'] = 'https://schema.org';
-        $autoSchema['@type'] = $this->structuredDataType;
+        // 파라미터가 없거나, 있더라도 @type이 없을 때만 자동 생성을 시도합니다.
+        if (is_null($data) || ! isset($data['@type'])) {
+            $autoSchema['@context'] = 'https://schema.org';
+            $autoSchema['@type'] = $this->structuredDataType;
+            switch ($this->structuredDataType) {
+                case 'Article':
+                    $autoSchema['headline'] = $this->title;
+                    $autoSchema['description'] = $this->description;
+                    $autoSchema['image'] = $this->og->image ? url($this->og->image) : null;
+                    $autoSchema['author'] = config('pondol-meta.structured_data.author');
+                    $autoSchema['publisher'] = config('pondol-meta.structured_data.publisher');
+                    $autoSchema['datePublished'] = $this->created_at ? $this->created_at->toIso8601String() : null;
+                    $autoSchema['dateModified'] = $this->updated_at ? $this->updated_at->toIso8601String() : null;
+                    break;
+                case 'Service':
+                    $serviceType = $this->title;
+                    if (str_contains($serviceType, ' - ')) {
+                        $serviceType = explode(' - ', $serviceType)[0];
+                    }
+                    if (str_contains($serviceType, '(')) {
+                        $serviceType = explode(' (', $serviceType)[0];
+                    }
+                    if (str_contains($serviceType, '님의 ')) {
+                        $serviceType = explode('님의 ', $serviceType)[1];
+                    }
 
-        switch ($this->structuredDataType) {
-            case 'Article':
-                $autoSchema['headline'] = $this->title;
-                $autoSchema['description'] = $this->description;
-                $autoSchema['image'] = $this->og->image ? url($this->og->image) : null;
-                $autoSchema['author'] = config('pondol-meta.structured_data.author');
-                $autoSchema['publisher'] = config('pondol-meta.structured_data.publisher');
-                $autoSchema['datePublished'] = $this->created_at ? $this->created_at->toIso8601String() : null;
-                $autoSchema['dateModified'] = $this->updated_at ? $this->updated_at->toIso8601String() : null;
-                break;
-            case 'Service':
-                $serviceType = $this->title;
-                if (str_contains($serviceType, ' - ')) {
-                    $serviceType = explode(' - ', $serviceType)[0];
-                }
-                if (str_contains($serviceType, '(')) {
-                    $serviceType = explode(' (', $serviceType)[0];
-                }
-                if (str_contains($serviceType, '님의 ')) {
-                    $serviceType = explode('님의 ', $serviceType)[1];
-                }
+                    $autoSchema['name'] = $this->title;
+                    $autoSchema['serviceType'] = trim($serviceType);
+                    $autoSchema['provider'] = config('pondol-meta.structured_data.publisher');
+                    $autoSchema['description'] = $this->description;
+                    $autoSchema['image'] = $this->og->image ? url($this->og->image) : null;
 
-                $autoSchema['name'] = $this->title;
-                $autoSchema['serviceType'] = trim($serviceType);
-                $autoSchema['provider'] = config('pondol-meta.structured_data.publisher');
-                $autoSchema['description'] = $this->description;
-                $autoSchema['image'] = $this->og->image ? url($this->og->image) : null;
-                break;
-            case 'WebPage':
-                $autoSchema['name'] = $this->title;
-                $autoSchema['description'] = $this->description;
-                $autoSchema['publisher'] = config('pondol-meta.structured_data.publisher');
-                break;
-            case 'FAQPage':
-                // 타입이 FAQPage'만'으로 설정된 경우, mainEntity를 여기에 직접 할당합니다.
+                    // [신규] 누락되었던 속성들을 Article처럼 추가합니다.
+                    $autoSchema['author'] = config('pondol-meta.structured_data.author');
+                    $autoSchema['publisher'] = config('pondol-meta.structured_data.publisher');
+                    $autoSchema['datePublished'] = $this->created_at ? $this->created_at->toIso8601String() : null;
+                    $autoSchema['dateModified'] = $this->updated_at ? $this->updated_at->toIso8601String() : null;
+                    break;
+                case 'WebPage':
+                    $autoSchema['name'] = $this->title;
+                    $autoSchema['description'] = $this->description;
+                    $autoSchema['publisher'] = config('pondol-meta.structured_data.publisher');
+                    break;
+                case 'FAQPage':
+                    $autoSchema['mainEntity'] = $this->faqItems;
+                    break;
+                default:
+                    $autoSchema['name'] = $this->title;
+                    $autoSchema['description'] = $this->description;
+                    break;
+            }
+            if (! empty($this->faqItems) && $this->structuredDataType !== 'FAQPage') {
                 $autoSchema['mainEntity'] = $this->faqItems;
-                break;
-            default:
-                // Article, Service, WebPage가 아닌 다른 모든 타입의 기본값
-                $autoSchema['name'] = $this->title;
-                $autoSchema['description'] = $this->description;
-                break;
+            }
         }
 
-        // FAQ 데이터가 있고, 현재 타입이 FAQPage가 아닐 경우, mainEntity를 추가합니다.
-        if (! empty($this->faqItems) && $this->structuredDataType !== 'FAQPage') {
-            $autoSchema['mainEntity'] = $this->faqItems;
+        $finalSchema = (array) $this->structuredData;
+        $finalSchema = array_merge($finalSchema, $autoSchema);
+        if ($data) {
+            if (isset($data[0]) && is_array($data[0])) {
+                $finalSchema = $data;
+            } else {
+                $finalSchema = array_merge($finalSchema, $data);
+            }
         }
 
-        // 2. 파라미터로 받은 수동 데이터($data)를 자동 생성된 스키마($autoSchema)에 '병합'합니다.
-        //    $data가 null이면 $autoSchema를 그대로 사용하고, $data가 있으면 두 배열을 합칩니다.
-        //    array_merge는 뒤에 오는 배열의 값으로 키를 덮어씁니다.
-        $schema = is_null($data) ? $autoSchema : array_merge($autoSchema, $data);
-
-        // 3. 공통 후처리 로직 (URL 변환 등 - 기존과 동일)
-        if (isset($schema['publisher']['logo']['url']) && ! str_starts_with($schema['publisher']['logo']['url'], 'http')) {
-            $schema['publisher']['logo']['url'] = url($schema['publisher']['logo']['url']);
-        }
-        if (isset($schema['provider']['logo']['url']) && ! str_starts_with($schema['provider']['logo']['url'], 'http')) {
-            $schema['provider']['logo']['url'] = url($schema['provider']['logo']['url']);
-        }
-
-        // 4. 최종적으로 클래스 속성에 데이터를 병합합니다. (null 값 제거 포함)
-        $this->structuredData = array_merge((array) $this->structuredData, array_filter($schema, fn ($value) => ! is_null($value)));
+        $this->structuredData = array_filter($finalSchema, fn ($value) => ! is_null($value));
+        $this->normalizeStructuredData(); // 후처리 함수 호출 추가
 
         return $this;
     }
@@ -391,14 +389,14 @@ class Meta
             if (is_array($value) || is_object($value)) {
                 if ($key === 'og') {
                     foreach ($value as $og_key => $og_value) {
-                        // [수정] 이미지 경로 처리 로직 강화
+                        // 이미지 경로 처리 로직 강화
                         if ($og_key === 'image' && $og_value) {
                             // 1. 절대 경로(http...)가 아닌 경우에만 도메인 붙이기
                             if (! str_starts_with($og_value, 'http://') && ! str_starts_with($og_value, 'https://')) {
 
                                 // 2. [핵심] 도메인 끝의 슬래시 제거 + 경로 앞의 슬래시 추가 보장
                                 $baseUrl = rtrim(config('app.url'), '/'); // 도메인 뒤 '/' 제거
-                                $path = \Illuminate\Support\Str::start($og_value, '/'); // 경로 앞 '/' 강제 추가
+                                $path = Str::start($og_value, '/'); // 경로 앞 '/' 강제 추가
 
                                 $og_value = $baseUrl.$path;
                             }
@@ -440,5 +438,195 @@ class Meta
         }
 
         return [$meta, $og, $twitter];
+    }
+
+    /**
+     * Product 스키마를 생성하고 설정합니다.
+     *
+     * @param  array  $productData  ['sku' => ..., 'price' => ...]
+     * @return self
+     */
+    public function buildProductSchema(array $productData = [])
+    {
+        $this->type('Product'); // 타입을 'Product'로 설정 (이것은 $this->structuredDataType에 저장됨)
+        $schema = [
+            '@context' => 'https://schema.org',
+            '@type' => 'Product', // 여기서 Product를 명시
+            'name' => $this->title,
+            'description' => $this->description,
+            'image' => $this->og->image ? url($this->og->image) : null,
+            'sku' => $productData['sku'] ?? null,
+            'brand' => ['@type' => 'Brand', 'name' => config('app.name', '길라잡이')],
+            'offers' => [
+                '@type' => 'Offer', 'url' => url()->current(), 'priceCurrency' => 'KRW',
+                'price' => $productData['price'] ?? '0', 'availability' => 'https://schema.org/InStock',
+                'seller' => ['@type' => 'Organization', 'name' => config('app.name', '길라잡이')],
+            ],
+        ];
+        // buildProductSchema는 자체적으로 structuredData를 생성하므로,
+        // 여기에 바로 병합해주는 것이 맞습니다.
+        $this->structuredData = array_merge($this->structuredData, $schema);
+
+        return $this;
+    }
+
+    /**
+     * Article 스키마를 생성하고 설정합니다.
+     *
+     * @return self
+     */
+    public function buildArticleSchema()
+    {
+        $this->type('Article');
+        $schema = [
+            '@context' => 'https://schema.org',
+            '@type' => 'Article',
+            'headline' => $this->title,
+            'description' => $this->description,
+            'image' => $this->og->image ? [url($this->og->image)] : null,
+            'author' => config('pondol-meta.structured_data.author'),
+            'publisher' => config('pondol-meta.structured_data.publisher'),
+            'datePublished' => $this->created_at ? $this->created_at->toIso8601String() : now()->subWeek()->toIso8601String(),
+            'dateModified' => $this->updated_at ? $this->updated_at->toIso8601String() : now()->toIso8601String(),
+        ];
+        // buildArticleSchema는 자체적으로 structuredData를 생성하므로,
+        // 여기에 바로 병합해주는 것이 맞습니다.
+        $this->structuredData = array_merge($this->structuredData, $schema);
+
+        return $this;
+    }
+
+    /**
+     * CollectionPage 스키마를 생성하고 설정합니다.
+     * 페이지에 포함된 링크들의 목록을 받아서 'hasPart' 속성을 자동으로 구성합니다.
+     *
+     * @param  array  $items  ['name' => '항목 이름', 'url' => '항목 URL'] 형태의 배열
+     * @return self
+     */
+    public function buildCollectionPageSchema(array $items = [])
+    {
+        $this->type('CollectionPage');
+        $hasPart = [];
+        foreach ($items as $item) {
+            if (isset($item['name']) && isset($item['url'])) {
+                $hasPart[] = ['@type' => 'WebPage', 'name' => $item['name'], 'url' => $item['url']];
+            }
+        }
+        $schema = [
+            '@context' => 'https://schema.org',
+            '@type' => 'CollectionPage',
+            'name' => $this->title,
+            'description' => $this->description,
+            'hasPart' => $hasPart,
+        ];
+        // buildCollectionPageSchema는 자체적으로 structuredData를 생성하므로,
+        // 여기에 바로 병합해주는 것이 맞습니다.
+        $this->structuredData = array_merge($this->structuredData, $schema);
+
+        return $this;
+    }
+
+    /**
+     * FAQPage 스키마를 생성하고 설정합니다.
+     * 이 메소드는 이전에 만들었던 faq() 빌더와 함께 작동합니다.
+     *
+     * @return self
+     */
+    public function buildFaqPageSchema()
+    {
+        $this->type('FAQPage');
+        $schema = [
+            '@context' => 'https://schema.org',
+            '@type' => 'FAQPage',
+            'mainEntity' => $this->faqItems,
+        ];
+        // buildFaqPageSchema는 자체적으로 structuredData를 생성하므로,
+        // 여기에 바로 병합해주는 것이 맞습니다.
+        $this->structuredData = array_merge($this->structuredData, $schema);
+
+        return $this;
+    }
+
+    public function applySchema(?array $data = null)
+    {
+        // 파라미터로 받은 데이터($data)가 있으면, 기존 데이터와 병합합니다.
+        if ($data) {
+            if (isset($data[0])) {
+                $this->structuredData = $data;
+            } else {
+                $this->structuredData = array_merge($this->structuredData, $data);
+            }
+        }
+
+        // 만약 아무런 structuredData가 설정되지 않았다면, 기본 스키마를 생성합니다.
+        if (empty($this->structuredData)) {
+            $this->buildDefaultSchema();
+        }
+
+        return $this;
+    }
+
+    /**
+     * structuredData가 비어있을 때 호출될 기본 스키마 생성 헬퍼
+     */
+    private function buildDefaultSchema()
+    {
+        $this->type($this->structuredDataType ?? 'WebPage'); // 기본값이 없으면 WebPage
+
+        $schema = [
+            '@context' => 'https://schema.org',
+            '@type' => $this->structuredDataType,
+            'name' => $this->title,
+            'description' => $this->description,
+            'publisher' => config('pondol-meta.structured_data.publisher'),
+        ];
+        $this->structuredData = $schema;
+    }
+
+    /**
+     * [신규] structuredData 내부의 값들을 최종적으로 정규화하는 헬퍼
+     */
+    private function normalizeStructuredData()
+    {
+        // structuredData가 비어있으면 아무것도 하지 않음
+        if (empty($this->structuredData)) {
+            return;
+        }
+
+        // 여러 스키마가 배열로 들어있는 경우, 각 스키마에 대해 재귀적으로 처리
+        if (isset($this->structuredData[0]) && is_array($this->structuredData[0])) {
+            foreach ($this->structuredData as $key => $schema) {
+                $this->structuredData[$key] = $this->normalizeSchema($schema);
+            }
+        } else { // 단일 스키마 처리
+            $this->structuredData = $this->normalizeSchema($this->structuredData);
+        }
+    }
+
+    /**
+     * 단일 스키마 객체를 정규화하는 헬퍼
+     */
+    private function normalizeSchema(array $schema): array
+    {
+        if (isset($schema['publisher']['logo']['url']) && ! Str::startsWith($schema['publisher']['logo']['url'], 'http')) {
+            $schema['publisher']['logo']['url'] = url($schema['publisher']['logo']['url']);
+        }
+        if (isset($schema['provider']['logo']['url']) && ! Str::startsWith($schema['provider']['logo']['url'], 'http')) {
+            $schema['provider']['logo']['url'] = url($schema['provider']['logo']['url']);
+        }
+        if (isset($schema['image'])) {
+            if (is_array($schema['image'])) {
+                foreach ($schema['image'] as $key => $url) {
+                    if (! Str::startsWith($url, 'http')) {
+                        $schema['image'][$key] = url($url);
+                    }
+                }
+            } elseif (is_string($schema['image']) && ! Str::startsWith($schema['image'], 'http')) {
+                $schema['image'] = url($schema['image']);
+            }
+        }
+
+        // null 값을 가진 키를 제거
+        return array_filter($schema, fn ($value) => ! is_null($value));
     }
 }
