@@ -205,6 +205,34 @@ class Meta
     }
 
     /**
+     * [신규/개선] 지능형 설명문 설정
+     * 데이터가 있을 때만 해당 문구를 포함하여 설명을 구성합니다.
+     * 예: $meta->smartDescription('기질 분석', $charms, '매력 포인트(:data)');
+     */
+    public function smartDescription(string $base, array $data = [], string $template = '', string $suffix = '')
+    {
+        $result = $base;
+
+        if (! empty($data)) {
+            $dataString = implode(', ', array_slice($data, 0, 3)); // 최대 3개까지만
+            if ($template && str_contains($template, ':data')) {
+                $result .= ' '.str_replace(':data', $dataString, $template);
+            } else {
+                $result .= ' '.$dataString;
+            }
+        }
+
+        if ($suffix) {
+            $result .= ' '.$suffix;
+        }
+
+        // 불필요한 연속 공백 및 쉼표 정리
+        $this->description = Str::squish(trim($result));
+
+        return $this;
+    }
+
+    /**
      * JSON-LD 구조화된 데이터를 설정합니다.
      * 파라미터 없이 호출하면, 기존 meta 정보와 type()으로 설정된 타입을 기반으로 JSON-LD를 자동 생성합니다.
      * 파라미터로 배열을 전달하면, 해당 데이터를 기존 structuredData에 병합합니다.
@@ -214,15 +242,84 @@ class Meta
      */
     public function structuredData(?array $data = null)
     {
-        $autoSchema = [];
-        // 파라미터가 없거나, 있더라도 @type이 없을 때만 자동 생성을 시도합니다.
-        if (is_null($data) || ! isset($data['@type'])) {
-            $autoSchema['@context'] = 'https://schema.org';
-            $autoSchema['@type'] = $this->structuredDataType;
+        // 1. 현재 저장된 데이터 가져오기
+        $currentSchema = (array) $this->structuredData;
+
+        // 2. 외부 데이터($data)가 들어왔을 때 병합 로직
+        if ($data) {
+            // [CASE 1] 외부 데이터가 '다중 스키마(배열 리스트)'인 경우 (예: [Schema A, Schema B])
+            if (isset($data[0])) {
+                if (! empty($currentSchema)) {
+                    // 기존 데이터가 단일 객체라면 리스트로 감쌈
+                    $currentList = isset($currentSchema[0]) ? $currentSchema : [$currentSchema];
+                    $currentSchema = array_merge($currentList, $data);
+                } else {
+                    $currentSchema = $data;
+                }
+            }
+            // [CASE 2] 외부 데이터가 '단일 스키마'인 경우
+            else {
+                // 기존 데이터가 비어있으면 그대로 할당
+                if (empty($currentSchema)) {
+                    $currentSchema = $data;
+                }
+                // 기존 데이터가 '다중 스키마(리스트)'라면 배열 끝에 추가
+                elseif (isset($currentSchema[0])) {
+                    $currentSchema[] = $data;
+                }
+                // [CASE 3] 기존 데이터도 단일, 외부 데이터도 단일 -> 지능형 병합 (Smart Merge)
+                else {
+                    $currentType = $currentSchema['@type'] ?? $this->structuredDataType;
+                    $incomingType = $data['@type'] ?? null;
+
+                    // (3-1) 기존이 Product이고, 들어온 것이 다른 타입(Quiz 등)이라면 -> mainEntity로 감싸기
+                    if ($currentType === 'Product' && $incomingType && $incomingType !== 'Product') {
+                        // 이미지 필드는 안전하게 병합 (Product에도 이미지가 있으면 좋음)
+                        if (isset($data['image'])) {
+                            $this->mergeImage($currentSchema, $data['image']);
+                            unset($data['image']);
+                        }
+
+                        // 나머지는 mainEntity로 병합
+                        if (isset($currentSchema['mainEntity'])) {
+                            // 이미 mainEntity가 있다면 배열로 변환해서 추가
+                            $existingMain = isset($currentSchema['mainEntity'][0]) ? $currentSchema['mainEntity'] : [$currentSchema['mainEntity']];
+                            $existingMain[] = $data;
+                            $currentSchema['mainEntity'] = $existingMain;
+                        } else {
+                            $currentSchema['mainEntity'] = $data;
+                        }
+                    }
+                    // (3-2) 서로 다른 독립적인 타입이라면 (예: CollectionPage + FAQPage) -> 리스트(@graph)로 변환
+                    elseif ($currentType && $incomingType && $currentType !== $incomingType) {
+                        $currentSchema = [$currentSchema, $data];
+                    }
+                    // (3-3) 같은 타입이거나 단순 속성 추가 -> 일반 병합
+                    else {
+                        if (isset($data['image'])) {
+                            $this->mergeImage($currentSchema, $data['image']);
+                            unset($data['image']);
+                        }
+                        $currentSchema = array_merge($currentSchema, $data);
+                    }
+                }
+            }
+        }
+
+        // 3. 자동 스키마(기본값) 생성 (기존 데이터가 하나도 없을 때만 적용)
+        // 기존 코드의 switch 문 로직을 그대로 유지
+        if (empty($currentSchema) && $this->structuredDataType) {
+            $autoSchema = [
+                '@context' => 'https://schema.org',
+                '@type' => $this->structuredDataType,
+                'name' => $this->title,
+                'description' => $this->description,
+                'url' => url()->current(),
+            ];
+
             switch ($this->structuredDataType) {
                 case 'Article':
                     $autoSchema['headline'] = $this->title;
-                    $autoSchema['description'] = $this->description;
                     $autoSchema['image'] = $this->og->image ? url($this->og->image) : null;
                     $autoSchema['author'] = config('pondol-meta.structured_data.author');
                     $autoSchema['publisher'] = config('pondol-meta.structured_data.publisher');
@@ -230,59 +327,59 @@ class Meta
                     $autoSchema['dateModified'] = $this->updated_at ? $this->updated_at->toIso8601String() : null;
                     break;
                 case 'Service':
-                    $serviceType = $this->title;
-                    if (str_contains($serviceType, ' - ')) {
-                        $serviceType = explode(' - ', $serviceType)[0];
-                    }
-                    if (str_contains($serviceType, '(')) {
-                        $serviceType = explode(' (', $serviceType)[0];
-                    }
-                    if (str_contains($serviceType, '님의 ')) {
-                        $serviceType = explode('님의 ', $serviceType)[1];
-                    }
-
-                    $autoSchema['name'] = $this->title;
-                    $autoSchema['serviceType'] = trim($serviceType);
                     $autoSchema['provider'] = config('pondol-meta.structured_data.publisher');
-                    $autoSchema['description'] = $this->description;
                     $autoSchema['image'] = $this->og->image ? url($this->og->image) : null;
-
-                    // [신규] 누락되었던 속성들을 Article처럼 추가합니다.
-                    $autoSchema['author'] = config('pondol-meta.structured_data.author');
-                    $autoSchema['publisher'] = config('pondol-meta.structured_data.publisher');
-                    $autoSchema['datePublished'] = $this->created_at ? $this->created_at->toIso8601String() : null;
-                    $autoSchema['dateModified'] = $this->updated_at ? $this->updated_at->toIso8601String() : null;
                     break;
                 case 'WebPage':
-                    $autoSchema['name'] = $this->title;
-                    $autoSchema['description'] = $this->description;
                     $autoSchema['publisher'] = config('pondol-meta.structured_data.publisher');
                     break;
                 case 'FAQPage':
-                    $autoSchema['mainEntity'] = $this->faqItems;
-                    break;
-                default:
-                    $autoSchema['name'] = $this->title;
-                    $autoSchema['description'] = $this->description;
+                    if (! empty($this->faqItems)) {
+                        $autoSchema['mainEntity'] = $this->faqItems;
+                    }
                     break;
             }
+
+            // FAQItems가 있는데 타입이 FAQPage가 아니라면 mainEntity에 추가
             if (! empty($this->faqItems) && $this->structuredDataType !== 'FAQPage') {
                 $autoSchema['mainEntity'] = $this->faqItems;
             }
+
+            $currentSchema = $autoSchema;
         }
 
-        $finalSchema = (array) $this->structuredData;
-        $finalSchema = array_merge($finalSchema, $autoSchema);
-        if ($data) {
-            if (isset($data[0]) && is_array($data[0])) {
-                $finalSchema = $data;
-            } else {
-                $finalSchema = array_merge($finalSchema, $data);
+        // 4. [이미지 자동 주입] 스키마에 이미지가 없고 OG 이미지가 있다면 주입 (단일 객체일 때만)
+        // 리스트(@graph)인 경우 첫 번째 요소에 주입
+        if (! empty($this->og->image)) {
+            if (isset($currentSchema[0])) { // 리스트인 경우
+                if (! isset($currentSchema[0]['image'])) {
+                    $currentSchema[0]['image'] = [url($this->og->image)];
+                }
+            } else { // 단일 객체인 경우
+                if (! isset($currentSchema['image'])) {
+                    $currentSchema['image'] = [url($this->og->image)];
+                }
             }
         }
 
-        $this->structuredData = array_filter($finalSchema, fn ($value) => ! is_null($value));
-        $this->normalizeStructuredData(); // 후처리 함수 호출 추가
+        // 5. 최종 반환 형태 결정 (@graph 자동 변환)
+        // 숫자로 된 키(0, 1...)가 존재하면 다중 스키마이므로 @graph로 감싼다.
+        if (isset($currentSchema[0])) {
+            $this->structuredData = [
+                '@context' => 'https://schema.org',
+                '@graph' => $currentSchema,
+            ];
+        } else {
+            // 단일 스키마라면 @context를 포함하여 저장
+            // 이미 @context가 있다면 덮어씌우지 않음
+            if (! isset($currentSchema['@context'])) {
+                $currentSchema = array_merge(['@context' => 'https://schema.org'], $currentSchema);
+            }
+            $this->structuredData = $currentSchema;
+        }
+
+        // null 값 필터링 및 정규화
+        $this->normalizeStructuredData();
 
         return $this;
     }
@@ -315,7 +412,9 @@ class Meta
     public function image($path)
     {
         if ($path) {
-            $this->og->image = $path;
+            // 이미 절대 경로면 그대로 사용, 아니면 url() 처리
+            $this->og->image = (str_starts_with($path, 'http')) ? $path : url($path);
+            $this->twitter->image = $this->og->image;
         }
 
         return $this;
@@ -628,5 +727,18 @@ class Meta
 
         // null 값을 가진 키를 제거
         return array_filter($schema, fn ($value) => ! is_null($value));
+    }
+
+    // 이미지 병합 헬퍼
+    private function mergeImage(array &$schema, $newImage)
+    {
+        if (! isset($schema['image'])) {
+            $schema['image'] = $newImage;
+
+            return;
+        }
+        $existing = is_array($schema['image']) ? $schema['image'] : [$schema['image']];
+        $new = is_array($newImage) ? $newImage : [$newImage];
+        $schema['image'] = array_values(array_unique(array_merge($existing, $new)));
     }
 }
