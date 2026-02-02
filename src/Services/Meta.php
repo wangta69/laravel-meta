@@ -687,17 +687,48 @@ class Meta
      */
     private function normalizeStructuredData()
     {
-        // structuredData가 비어있으면 아무것도 하지 않음
         if (empty($this->structuredData)) {
             return;
         }
 
-        // 여러 스키마가 배열로 들어있는 경우, 각 스키마에 대해 재귀적으로 처리
+        // [추가] 구글 리치 결과에서 별점(Review)이 허용되는 스키마 타입 목록
+        $reviewableTypes = [
+            'Product',
+            'SoftwareApplication',
+            'Book',
+            'Course',
+            'Event',
+            'HowTo',
+            'LocalBusiness',
+            'Recipe',
+            'CreativeWork',
+        ];
+
+        // 현재 설정된 메인 타입 (기본값 WebPage)
+        $currentType = $this->structuredDataType ?? 'WebPage';
+
+        // 다중 스키마(@graph)인 경우와 단일 스키마인 경우 분기 처리
         if (isset($this->structuredData[0]) && is_array($this->structuredData[0])) {
+            // (@graph 형태: 배열의 배열)
             foreach ($this->structuredData as $key => $schema) {
-                $this->structuredData[$key] = $this->normalizeSchema($schema);
+                // [추가] 각 스키마별로 별점 허용 여부 체크 후 필터링
+                $this->structuredData[$key] = $this->filterAggregateRating($schema, $reviewableTypes);
+
+                // 기존 정규화 로직 (이미지, URL 등)
+                $this->structuredData[$key] = $this->normalizeSchema($this->structuredData[$key]);
             }
-        } else { // 단일 스키마 처리
+        } else {
+            // (단일 형태: 연관 배열)
+            // [추가] 메인 타입이 허용 목록에 없고, 내부에 별점이 있다면 삭제
+            // 단, structuredData 배열 내부에 명시된 @type이 있다면 그것을 우선 존중
+            $schemaType = $this->structuredData['@type'] ?? $currentType;
+
+            // 타입이 허용 목록에 없으면 aggregateRating 삭제
+            if (! in_array($schemaType, $reviewableTypes)) {
+                unset($this->structuredData['aggregateRating']);
+            }
+
+            // 기존 정규화 로직
             $this->structuredData = $this->normalizeSchema($this->structuredData);
         }
     }
@@ -740,5 +771,22 @@ class Meta
         $existing = is_array($schema['image']) ? $schema['image'] : [$schema['image']];
         $new = is_array($newImage) ? $newImage : [$newImage];
         $schema['image'] = array_values(array_unique(array_merge($existing, $new)));
+    }
+
+    /**
+     * [신규] 스키마 내부의 평점 필터링 헬퍼
+     * 타입이 허용 목록에 없으면 aggregateRating을 제거합니다.
+     */
+    private function filterAggregateRating(array $schema, array $allowedTypes)
+    {
+        // 스키마에 평점이 있고, 타입(@type)이 존재할 때 검사
+        if (isset($schema['aggregateRating']) && isset($schema['@type'])) {
+            // 허용된 타입이 아니라면 과감히 삭제
+            if (! in_array($schema['@type'], $allowedTypes)) {
+                unset($schema['aggregateRating']);
+            }
+        }
+
+        return $schema;
     }
 }
