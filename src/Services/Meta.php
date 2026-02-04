@@ -351,14 +351,11 @@ class Meta
         // 4. [이미지 자동 주입] 스키마에 이미지가 없고 OG 이미지가 있다면 주입 (단일 객체일 때만)
         // 리스트(@graph)인 경우 첫 번째 요소에 주입
         if (! empty($this->og->image)) {
-            if (isset($currentSchema[0])) { // 리스트인 경우
-                if (! isset($currentSchema[0]['image'])) {
-                    $currentSchema[0]['image'] = [url($this->og->image)];
-                }
-            } else { // 단일 객체인 경우
-                if (! isset($currentSchema['image'])) {
-                    $currentSchema['image'] = [url($this->og->image)];
-                }
+            $targetImage = url($this->og->image);
+            if (isset($currentSchema[0])) { // @graph 리스트인 경우 첫 번째 요소 업데이트
+                $currentSchema[0]['image'] = [$targetImage];
+            } else { // 단일 객체인 경우 업데이트
+                $currentSchema['image'] = [$targetImage];
             }
         }
 
@@ -412,9 +409,18 @@ class Meta
     public function image($path)
     {
         if ($path) {
-            // 이미 절대 경로면 그대로 사용, 아니면 url() 처리
-            $this->og->image = (str_starts_with($path, 'http')) ? $path : url($path);
-            $this->twitter->image = $this->og->image;
+            $fullUrl = (str_starts_with($path, 'http')) ? $path : url($path);
+            $this->og->image = $fullUrl;
+            $this->twitter->image = $fullUrl;
+
+            // [추가] 이미 structuredData가 생성되어 있다면 해당 이미지도 즉시 변경
+            if (! empty($this->structuredData)) {
+                if (isset($this->structuredData['@graph'][0])) {
+                    $this->structuredData['@graph'][0]['image'] = [$fullUrl];
+                } elseif (isset($this->structuredData['image'])) {
+                    $this->structuredData['image'] = [$fullUrl];
+                }
+            }
         }
 
         return $this;
