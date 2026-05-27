@@ -147,7 +147,7 @@ Meta::get()->create_image(function($image) {
 
 본 패키지의 모든 기능(Meta, JSON-LD, IndexNow)이 실제로 적용되어 운영 중인 사례입니다.
 
-- [길라잡이 (Gilra.kr)](https://www.gilra.kr)
+- [길라 (Gilra.kr)](https://www.gilra.kr)
 
 ---
 
