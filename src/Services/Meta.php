@@ -36,6 +36,8 @@ class Meta
 
     private $faqItems = [];
 
+    public $extras = [];
+
     public function __construct()
     {
         $this->og = new \stdClass;
@@ -478,6 +480,14 @@ class Meta
         return $this->description;
     }
 
+    // 2. 임의의 태그를 추가하는 메서드 (체이닝 지원)
+    public function tag($name, $content)
+    {
+        $this->extras[$name] = $content;
+
+        return $this;
+    }
+
     public function toArray()
     {
 
@@ -540,6 +550,10 @@ class Meta
                     $meta[$key] = $value;
                     break;
             }
+        }
+
+        foreach ($this->extras as $name => $content) {
+            $meta[$name] = $content;
         }
 
         return [$meta, $og, $twitter];
@@ -689,7 +703,7 @@ class Meta
     }
 
     /**
-     * [신규] structuredData 내부의 값들을 최종적으로 정규화하는 헬퍼
+     * structuredData 내부의 값들을 최종적으로 정규화하는 헬퍼
      */
     private function normalizeStructuredData()
     {
@@ -697,7 +711,7 @@ class Meta
             return;
         }
 
-        // [추가] 구글 리치 결과에서 별점(Review)이 허용되는 스키마 타입 목록
+        // 구글 리치 결과에서 별점(Review)이 허용되는 스키마 타입 목록
         $reviewableTypes = [
             'Product',
             'SoftwareApplication',
@@ -780,7 +794,7 @@ class Meta
     }
 
     /**
-     * [신규] 스키마 내부의 평점 필터링 헬퍼
+     * 스키마 내부의 평점 필터링 헬퍼
      * 타입이 허용 목록에 없으면 aggregateRating을 제거합니다.
      */
     private function filterAggregateRating(array $schema, array $allowedTypes)
