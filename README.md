@@ -11,7 +11,48 @@ php artisan pondol:install-meta
 
 ---
 
-## 1. 메타 데이터 관리 (Database & Real-time)
+## 1. 기본 적인 사용법
+
+- 컨트롤러
+
+```
+use Pondol\Meta\Facades\Meta;
+
+---
+$meta = Meta::get()
+            ->title('타이틀')
+            ->description('요약 설명글')
+            ->keywords('키워드1, 키워드2,... 컴마로 구분')
+            ->image('이미지 경로')
+            ->canonical('캐노니컬')
+            ->type('page 속성')
+            ->structuredData();
+
+---
+ return view('home', compact('meta')); //
+```
+
+- blade(viewer)
+
+```
+@extends('layouts/app')
+
+@section('title', $meta->title ?? '')
+@section('meta_tags')
+    <x-pondol-meta::meta :meta="$meta" />
+@endsection
+....
+```
+
+- blade(app)
+
+```
+@yield('meta_tags')
+
+<title>@yield('title', config('app.name', '온스토리'))</title>
+```
+
+## 2. 메타 데이터 관리 (Database & Real-time)
 
 ### A. 데이터베이스 기반 관리
 
@@ -40,7 +81,7 @@ return view('search', compact('meta'));
 
 ---
 
-## 2. 블레이드 컴포넌트 (Blade Components)
+## 3. 블레이드 컴포넌트 (Blade Components)
 
 헤더 태그 출력뿐만 아니라, 검색 엔진에 콘텐츠 변경을 알리는 전용 컴포넌트를 제공합니다.
 
@@ -54,7 +95,7 @@ return view('search', compact('meta'));
 
 ---
 
-## 3. 강력한 SEO 도구 (Advanced SEO)
+## 4. 강력한 SEO 도구 (Advanced SEO)
 
 ### ✨ Smart Description (지능형 문구 생성)
 
@@ -81,7 +122,7 @@ Meta::get()->suffix(function($suffix) use($page) {
 
 ---
 
-## 4. 지능형 JSON-LD (Structured Data)
+## 5. 지능형 JSON-LD (Structured Data)
 
 Schema.org 규격에 맞는 구조화 데이터를 지원합니다. 여러 타입이 섞여도 지능적으로 병합(Smart Merge)하여 구글 리치 결과를 생성합니다.
 
@@ -102,7 +143,7 @@ Meta::get()
 
 ---
 
-## 5. 이미지 관리 (Static & Dynamic)
+## 6. 이미지 관리 (Static & Dynamic)
 
 ### A. 기존 이미지 경로 설정
 
@@ -126,7 +167,7 @@ Meta::get()->create_image(function($image) {
 
 ---
 
-## 6. 관리소 및 사이트맵 (Admin & Sitemap)
+## 7. 관리소 및 사이트맵 (Admin & Sitemap)
 
 ### 관리자 페이지
 
