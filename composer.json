@@ -20,6 +20,7 @@
   "minimum-stability": "stable",
   "require": {
     "php": ">=7.0.0",
+    "wangta69/laravel-pondol": "^8.12",
     "wangta69/laravel-index-now": "^8.12"
   },
   "autoload": {
