@@ -28,6 +28,9 @@ class Meta
 
     public $robots = 'index,follow';
 
+    // 특정 검색엔진 봇 전용 robots 지시어 보관 배열
+    public $botRobots = [];
+
     public $canonical = null;
 
     public $structuredData = [];
@@ -119,15 +122,56 @@ class Meta
 
     /**
      * robots 메타 태그의 content 값을 설정하는 메소드
+     * $bot 파라미터가 주어지면 해당 봇 전용 태그로 설정됩니다.
      *
-     * @param  string  $content  (예: 'noindex, nofollow')
+     * @param  string  $content  (예: 'noindex, follow', 'noindex, nofollow')
+     * @param  string|null  $bot  봇 이름 (예: 'googlebot', 'bingbot', 'yeti' 등)
      * @return self
      */
-    public function robots(string $content)
+    public function robots(string $content, ?string $bot = null)
     {
-        $this->robots = $content;
+        if ($bot) {
+            $this->botRobots[strtolower($bot)] = $content;
+        } else {
+            $this->robots = $content;
+        }
 
         return $this;
+    }
+
+    /**
+     * 구글봇(googlebot) 전용 robots 메타 설정 헬퍼
+     *
+     * @param  string  $content  기본값: 'noindex, follow'
+     * @return self
+     */
+    public function googlebot(string $content = 'noindex, follow')
+    {
+        return $this->robots($content, 'googlebot');
+    }
+
+    /**
+     * 빙봇(bingbot) 전용 robots 메타 설정 헬퍼
+     */
+    public function bingbot(string $content = 'noindex, follow')
+    {
+        return $this->robots($content, 'bingbot');
+    }
+
+    /**
+     * 네이버봇(yeti) 전용 robots 메타 설정 헬퍼
+     */
+    public function yeti(string $content = 'index, follow')
+    {
+        return $this->robots($content, 'yeti');
+    }
+
+    /**
+     * 구글 뉴스봇(googlebot-news) 전용 헬퍼
+     */
+    public function googlebotNews(string $content = 'noindex')
+    {
+        return $this->robots($content, 'googlebot-news');
     }
 
     /**
@@ -533,7 +577,6 @@ class Meta
                 continue;
             }
 
-            // ... (아래 스위치문은 기존과 동일) ...
             switch ($key) {
                 case 'id': case 'path': case 'created_at': case 'updated_at':
                     break;
@@ -552,6 +595,12 @@ class Meta
             }
         }
 
+        // 봇별 robots 지시어를 meta 태그 목록에 병합
+        foreach ($this->botRobots as $bot => $content) {
+            $meta[$bot] = $content;
+        }
+
+        // 임의 태그 병합 (기존 코드)
         foreach ($this->extras as $name => $content) {
             $meta[$name] = $content;
         }
