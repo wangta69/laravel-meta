@@ -398,10 +398,24 @@ class Meta
         // 리스트(@graph)인 경우 첫 번째 요소에 주입
         if (! empty($this->og->image)) {
             $targetImage = url($this->og->image);
-            if (isset($currentSchema[0])) { // @graph 리스트인 경우 첫 번째 요소 업데이트
-                $currentSchema[0]['image'] = [$targetImage];
-            } else { // 단일 객체인 경우 업데이트
-                $currentSchema['image'] = [$targetImage];
+
+            // [CASE A] @graph 키를 가진 연관 배열인 경우 -> @graph의 첫 번째 요소에 주입
+            if (isset($currentSchema['@graph'][0])) {
+                if (! isset($currentSchema['@graph'][0]['image'])) {
+                    $currentSchema['@graph'][0]['image'] = [$targetImage];
+                }
+            }
+            // [CASE B] 순수 숫자 인덱스 다중 스키마([0 => ..., 1 => ...])인 경우
+            elseif (isset($currentSchema[0])) {
+                if (! isset($currentSchema[0]['image'])) {
+                    $currentSchema[0]['image'] = [$targetImage];
+                }
+            }
+            // [CASE C] 일반 단일 객체인 경우 (Product, Article 등)
+            else {
+                if (! isset($currentSchema['image'])) {
+                    $currentSchema['image'] = [$targetImage];
+                }
             }
         }
 
@@ -760,44 +774,33 @@ class Meta
             return;
         }
 
-        // 구글 리치 결과에서 별점(Review)이 허용되는 스키마 타입 목록
         $reviewableTypes = [
-            'Product',
-            'SoftwareApplication',
-            'Book',
-            'Course',
-            'Event',
-            'HowTo',
-            'LocalBusiness',
-            'Recipe',
-            'CreativeWork',
+            'Product', 'SoftwareApplication', 'Book', 'Course',
+            'Event', 'HowTo', 'LocalBusiness', 'Recipe', 'CreativeWork',
         ];
 
-        // 현재 설정된 메인 타입 (기본값 WebPage)
         $currentType = $this->structuredDataType ?? 'WebPage';
 
-        // 다중 스키마(@graph)인 경우와 단일 스키마인 경우 분기 처리
-        if (isset($this->structuredData[0]) && is_array($this->structuredData[0])) {
-            // (@graph 형태: 배열의 배열)
+        // [추가] 1. @graph 연관 배열 형태인 경우: ['@context' => ..., '@graph' => [...]]
+        if (isset($this->structuredData['@graph']) && is_array($this->structuredData['@graph'])) {
+            foreach ($this->structuredData['@graph'] as $key => $schema) {
+                $this->structuredData['@graph'][$key] = $this->filterAggregateRating($schema, $reviewableTypes);
+                $this->structuredData['@graph'][$key] = $this->normalizeSchema($this->structuredData['@graph'][$key]);
+            }
+        }
+        // 2. 순수 다중 배열 형태인 경우: [0 => ..., 1 => ...]
+        elseif (isset($this->structuredData[0]) && is_array($this->structuredData[0])) {
             foreach ($this->structuredData as $key => $schema) {
-                // [추가] 각 스키마별로 별점 허용 여부 체크 후 필터링
                 $this->structuredData[$key] = $this->filterAggregateRating($schema, $reviewableTypes);
-
-                // 기존 정규화 로직 (이미지, URL 등)
                 $this->structuredData[$key] = $this->normalizeSchema($this->structuredData[$key]);
             }
-        } else {
-            // (단일 형태: 연관 배열)
-            // [추가] 메인 타입이 허용 목록에 없고, 내부에 별점이 있다면 삭제
-            // 단, structuredData 배열 내부에 명시된 @type이 있다면 그것을 우선 존중
+        }
+        // 3. 단일 형태인 경우
+        else {
             $schemaType = $this->structuredData['@type'] ?? $currentType;
-
-            // 타입이 허용 목록에 없으면 aggregateRating 삭제
             if (! in_array($schemaType, $reviewableTypes)) {
                 unset($this->structuredData['aggregateRating']);
             }
-
-            // 기존 정규화 로직
             $this->structuredData = $this->normalizeSchema($this->structuredData);
         }
     }
