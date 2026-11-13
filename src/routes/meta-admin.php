@@ -1,6 +1,6 @@
 <?php
 
-// 메타관리
+// src/routes/meta-admin.php
 Route::get('/', 'MetaController@index')->name('index');
 Route::get('edit/{item}', 'MetaController@edit')->name('edit');
 Route::put('edit/{item}', 'MetaController@update');
