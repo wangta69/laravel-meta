@@ -4,11 +4,6 @@ namespace Pondol\Meta\Console\Commands;
 
 use Illuminate\Console\Command;
 
-// use Illuminate\Filesystem\Filesystem;
-// use Illuminate\Support\Str;
-// use Symfony\Component\Process\PhpExecutableFinder;
-// use Symfony\Component\Process\Process;
-
 class InstallCommand extends Command
 {
     // use InstallsBladeStack;
@@ -27,7 +22,6 @@ class InstallCommand extends Command
      */
     protected $description = "Install Pondol's Meta Manager";
 
-
     public function __construct()
     {
         parent::__construct();
@@ -36,9 +30,9 @@ class InstallCommand extends Command
     public function handle()
     {
         $type = $this->argument('type');
+
         return $this->installLaravelMeta($type);
     }
-
 
     private function installLaravelMeta($type)
     {
@@ -47,8 +41,8 @@ class InstallCommand extends Command
         $this->call('pondol:install-index-now');
 
         \Artisan::call('vendor:publish', [
-          '--force' => true,
-          '--provider' => 'Pondol\Meta\MetaServiceProvider'
+            '--force' => true,
+            '--provider' => 'Pondol\Meta\MetaServiceProvider',
         ]);
         \Artisan::call('migrate');
         $this->info("The pondol's laravel metagtag manager system installed successfully.");

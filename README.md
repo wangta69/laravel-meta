@@ -15,7 +15,7 @@ php artisan pondol:install-meta
 
 - 컨트롤러
 
-```
+```php
 use Pondol\Meta\Facades\Meta;
 
 ---
@@ -29,12 +29,12 @@ $meta = Meta::get()
             ->structuredData();
 
 ---
- return view('home', compact('meta')); //
+return view('home', compact('meta'));
 ```
 
 - blade(viewer)
 
-```
+```blade
 @extends('layouts/app')
 
 @section('title', $meta->title ?? '')
@@ -46,7 +46,7 @@ $meta = Meta::get()
 
 - blade(app)
 
-```
+```blade
 @yield('meta_tags')
 
 <title>@yield('title', config('app.name', '온스토리'))</title>
@@ -83,7 +83,7 @@ return view('search', compact('meta'));
 
 ## 3. 블레이드 컴포넌트 (Blade Components)
 
-헤더 태그 출력뿐만 아니라, 검색 엔진에 콘텐츠 변경을 알리는 전용 컴포넌트를 제공합니다.
+헤더 태그 출력뿐만 아니라, 검색 엔진에 콘텐츠 변경을 알리고 관리자 권한으로 페이지 내에서 바로 메타 정보를 수정할 수 있는 전용 컴포넌트를 제공합니다.
 
 ```html
 <!-- 헤더 영역: 메타 태그, OG, Twitter, JSON-LD 자동 출력 -->
@@ -91,7 +91,56 @@ return view('search', compact('meta'));
 
 <!-- 본문 영역: 네이버/빙 등 검색엔진 자동 색인(IndexNow) 및 인증 처리 -->
 <x-pondol-meta::indexnow-auth :meta="$meta ?? null" />
+
+<!-- 본문 영역: 관리자 권한 확인 후 실시간 메타 정보 수정 폼 출력 -->
+<x-pondol-meta::edit-auth :meta="$meta" />
 ```
+
+### 🎨 스킨 설정 및 커스터마이징 (Skins)
+
+`edit-auth` 및 `edit` 컴포넌트는 **스킨(Skin)** 시스템을 지원하며, 패키지에 기본적으로 두 가지 스킨이 포함되어 있습니다.
+
+- **기본 제공 스킨**
+  - `default`: **Bootstrap 5** 기반 스킨
+  - `tailwind`: **Tailwind CSS (v3/v4 호환)** 기반 스킨
+
+#### A. 전역 기본 스킨 설정 (`config/pondol-meta.php`)
+
+애플리케이션 전체에서 사용할 기본 스킨을 설정 파일에서 지정할 수 있습니다.
+
+```php
+// config/pondol-meta.php
+'skin' => 'default', // 'default', 'tailwind' 또는 커스텀 스킨명
+```
+
+#### B. 컴포넌트 호출 시 특정 스킨 지정
+
+페이지나 레이아웃에 따라 호출 시점에 `skin` 속성을 직접 지정할 수 있습니다. (전달된 `skin`이 설정 파일보다 우선 적용됩니다.)
+
+```html
+<!-- Tailwind CSS 스킨 사용 -->
+<x-pondol-meta::edit-auth :meta="$meta" skin="tailwind" />
+
+<!-- 추가 HTML 속성(class 등) 전달 가능 -->
+<x-pondol-meta::edit-auth :meta="$meta" skin="tailwind" class="mt-10" />
+
+<!-- 권한 체크 없이 수정 폼 컴포넌트만 단독 사용할 경우 -->
+<x-pondol-meta::edit :meta="$meta" skin="default" />
+
+<!-- 프로젝트 내 일반 뷰 경로 직접 지정도 가능 -->
+<x-pondol-meta::edit-auth :meta="$meta" skin="partials.custom-meta-edit" />
+```
+
+#### C. 스킨 수정 및 새 스킨 추가
+
+`php artisan pondol:install-meta` 실행 시 스킨 파일이 프로젝트의 `resources/views/vendor/pondol-meta/skins/` 경로로 자동 복사됩니다. (스킨만 별도로 다시 복사하려면 아래 명령어를 실행하세요.)
+
+```bash
+php artisan vendor:publish --tag=pondol-meta-skins
+```
+
+1. **기존 스킨 수정**: `resources/views/vendor/pondol-meta/skins/default/edit.blade.php` (또는 `tailwind/edit.blade.php`) 파일을 수정합니다.
+2. **새 스킨 추가**: `resources/views/vendor/pondol-meta/skins/{원하는스킨명}/edit.blade.php` 파일을 생성한 뒤, 설정 파일이나 `skin="{원하는스킨명}"` 속성으로 불러와 사용할 수 있습니다.
 
 ---
 
